@@ -33,6 +33,26 @@ describe('scenario registry', () => {
     }
   });
 
+  it('every scenario declares a full classification for the Attack Classification panel', () => {
+    for (const scenario of SCENARIO_LIST) {
+      const c = scenario.classification;
+      expect(c.attack.length).toBeGreaterThan(0);
+      expect(c.family.length).toBeGreaterThan(0);
+      expect(c.layer.length).toBeGreaterThan(0);
+      expect(c.target.length).toBeGreaterThan(0);
+      expect(c.primaryImpact.length).toBeGreaterThan(0);
+      expect(c.primaryDefense.length).toBeGreaterThan(0);
+      expect(c.note.length).toBeGreaterThan(0);
+      expect(typeof c.requiresSessionToken).toBe('boolean');
+      expect(typeof c.requiresLanAccess).toBe('boolean');
+    }
+  });
+
+  it('every scenario has a unique classification note (no copy-pasted descriptions)', () => {
+    const notes = SCENARIO_LIST.map((s) => s.classification.note);
+    expect(new Set(notes).size).toBe(notes.length);
+  });
+
   it('generatePackets returns an array of valid packets for every scenario', () => {
     for (const scenario of SCENARIO_LIST) {
       const packets = scenario.generatePackets(false, 1);

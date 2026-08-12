@@ -11,6 +11,17 @@ export const arpspoofScenario: ScenarioDefinition = {
   aliases: ['mitm'],
   description:
     'An on-path attacker (192.168.1.50) poisons the local ARP cache, rerouting client <-> gateway traffic through their own machine to intercept or tamper with it.',
+  classification: {
+    attack: 'ARP Spoofing / MITM',
+    layer: 'L2',
+    family: 'Local Network / MITM',
+    requiresSessionToken: false,
+    requiresLanAccess: true,
+    target: '192.168.1.45 ↔ 192.168.1.1',
+    primaryImpact: 'Integrity / confidentiality',
+    primaryDefense: 'Dynamic ARP Inspection + static ARP entries',
+    note: 'ARP spoofing requires LAN / on-path access — the attacker must share the segment with the client to poison the ARP cache.',
+  },
   severity: 'moderate',
   topologyEffect: 'mitm-reroute',
   mitigable: true,

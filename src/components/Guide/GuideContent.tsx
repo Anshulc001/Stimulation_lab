@@ -46,6 +46,17 @@ export function GuideContent() {
                       </code>
                     </div>
                     <p className="mt-1 text-[11px] text-slate-400">{s.description}</p>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      <span className="text-slate-400">Family:</span> {s.classification.family} ·{' '}
+                      <span className="text-slate-400">Layer:</span> {s.classification.layer} ·{' '}
+                      <span className="text-slate-400">Session token:</span>{' '}
+                      {s.classification.requiresSessionToken ? 'YES' : 'NO'} ·{' '}
+                      <span className="text-slate-400">Defense:</span>{' '}
+                      <span className="text-neon-green">{s.classification.primaryDefense}</span>
+                    </p>
+                    <p className="mt-1 border-t border-slate-800/60 pt-1 text-[10px] italic leading-4 text-cyber-cyan/80">
+                      {s.classification.note}
+                    </p>
                   </div>
                   {s.demoVariant && (
                     <div className="rounded border border-dashed border-alert-red/40 bg-alert-red/5 p-2.5">

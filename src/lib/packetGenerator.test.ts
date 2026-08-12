@@ -7,6 +7,7 @@ import {
   makeLobbyPacket,
   makePingPacket,
   makePortScanPacket,
+  makeReflectionRequestPacket,
   makeSlowlorisPacket,
   makeTlsPacket,
   makeUdpPortScanPacket,
@@ -46,11 +47,20 @@ describe('packetGenerator', () => {
     expect(p.info).toContain('encrypted');
   });
 
-  it('generates well-formed flood packets with spoofed sources', () => {
+  it('generates well-formed TCP SYN flood packets with spoofed sources', () => {
     const p = makeFloodPacket();
     assertWellFormedPacket(p);
     expect(p.malicious).toBe(true);
+    expect(p.protocol).toBe('TCP');
+    expect(p.info).toContain('[SYN]');
+  });
+
+  it('generates well-formed reflection request packets', () => {
+    const p = makeReflectionRequestPacket();
+    assertWellFormedPacket(p);
     expect(p.protocol).toBe('UDP');
+    expect(p.malicious).toBe(true);
+    expect(p.info).toContain('[REFLECTION]');
   });
 
   it('generates well-formed port scan packets cycling through ports', () => {

@@ -9,11 +9,14 @@ import {
   CheckCircle2,
   Users,
   ArrowDownUp,
+  ArrowDown,
+  ArrowUp,
   History,
   LayoutDashboard,
 } from 'lucide-react';
 import { useSimStore } from '../../store/simStore';
 import { useUiStore } from '../../store/uiStore';
+import { getScenario } from '../../lib/scenarios/registry';
 import { PaneHeader } from '../Shared/PaneHeader';
 import { Gauge } from './Gauge';
 import { MiniLineChart } from './MiniLineChart';
@@ -38,6 +41,32 @@ const TABS = [
   { id: 'incidents' as const, label: 'Incidents', icon: History },
 ];
 
+/** Bandwidth severity — inbound above 10 Mbps is elevated, above 50 is saturated. */
+function bandwidthStatus(inbound: number) {
+  if (inbound > 50) {
+    return {
+      label: 'SATURATED',
+      badge: 'border-alert-red/40 bg-alert-red/10 text-alert-red animate-pulse-glow',
+      value: 'text-alert-red',
+      bar: 'bg-alert-red',
+    };
+  }
+  if (inbound > 10) {
+    return {
+      label: 'ELEVATED',
+      badge: 'border-yellow-400/40 bg-yellow-400/10 text-yellow-400',
+      value: 'text-yellow-400',
+      bar: 'bg-yellow-400',
+    };
+  }
+  return {
+    label: 'NOMINAL',
+    badge: 'border-neon-green/40 bg-neon-green/10 text-neon-green',
+    value: 'text-neon-green',
+    bar: 'bg-neon-green',
+  };
+}
+
 export function TelemetryMonitor() {
   const serverHealth = useSimStore((s) => s.serverHealth);
   const cpuLoad = useSimStore((s) => s.cpuLoad);
@@ -50,9 +79,13 @@ export function TelemetryMonitor() {
   const telemetry = useSimStore((s) => s.telemetry);
   const securityEvents = useSimStore((s) => s.securityEvents);
   const hwidBanned = useSimStore((s) => s.hwidBanned);
+  const activeScenario = useSimStore((s) => s.activeScenario);
+  const scenario = getScenario(activeScenario);
+  const isAttack = scenario.category === 'attack';
   const tab = useUiStore((s) => s.telemetryTab);
   const setTab = useUiStore((s) => s.setTelemetryTab);
   const health = healthConfig[serverHealth];
+  const bwStatus = bandwidthStatus(bandwidthIn);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-slate-800/80 bg-[#05070d]">
@@ -72,6 +105,18 @@ export function TelemetryMonitor() {
           </span>
         }
       />
+
+      {isAttack && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-slate-800/80 bg-[#0b1120] px-3 py-1 text-[10px]">
+          <span className="flex items-center gap-1 font-bold text-alert-red">
+            <Activity size={11} /> Impact focus:
+          </span>
+          <span className="font-semibold text-slate-100">{scenario.classification.primaryImpact}</span>
+          <span className="ml-auto text-slate-500">
+            Defense: <span className="text-neon-green">{scenario.classification.primaryDefense}</span>
+          </span>
+        </div>
+      )}
 
       <div className="flex border-b border-slate-800/80 bg-[#0b1120]">
         {TABS.map((t) => {
@@ -173,6 +218,25 @@ export function TelemetryMonitor() {
 
         {tab === 'extended' && (
           <>
+            {/* CPU + tick live alongside players/packet-loss/bandwidth so every
+                attack's primary impact is visible from this tab too. */}
+            <div className="grid grid-cols-2 gap-3">
+              <Gauge
+                label="CPU Load"
+                value={cpuLoad}
+                max={100}
+                unit="%"
+                colorClass={cpuLoad > 80 ? 'text-alert-red' : cpuLoad > 50 ? 'text-yellow-400' : 'text-neon-green'}
+              />
+              <Gauge
+                label="Game Tick Rate"
+                value={tickRate}
+                max={60}
+                unit="Hz"
+                colorClass={tickRate < 15 ? 'text-alert-red' : tickRate < 40 ? 'text-yellow-400' : 'text-neon-green'}
+              />
+            </div>
+
             <div>
               <div className="mb-1 flex items-center justify-between text-[11px]">
                 <span className="flex items-center gap-1.5 text-slate-400">
@@ -191,16 +255,58 @@ export function TelemetryMonitor() {
               colorClass={packetLoss > 40 ? 'text-alert-red' : packetLoss > 10 ? 'text-yellow-400' : 'text-neon-green'}
             />
 
-            <div>
-              <div className="mb-1 flex items-center justify-between text-[11px]">
-                <span className="flex items-center gap-1.5 text-slate-400">
-                  <ArrowDownUp size={12} /> Bandwidth (Mbps)
+            <div className="rounded border border-slate-800 bg-[#070b16] p-2.5">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <ArrowDownUp size={12} /> Bandwidth
                 </span>
-                <span className="font-semibold text-neon-green">
-                  {bandwidthIn.toFixed(1)} in / {bandwidthOut.toFixed(1)} out
+                <span
+                  className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${bwStatus.badge}`}
+                >
+                  {bwStatus.label}
                 </span>
               </div>
+
+              {/* Inbound / Outbound explained with arrows + levels */}
+              <div className="space-y-1.5">
+                <div>
+                  <div className="flex items-center justify-between text-[10.5px]">
+                    <span className="flex items-center gap-1 text-slate-400">
+                      <ArrowDown size={11} className="text-neon-green" /> Inbound (to server)
+                    </span>
+                    <span className={`font-mono font-semibold ${bwStatus.value}`}>
+                      {bandwidthIn.toFixed(1)} Mbps
+                    </span>
+                  </div>
+                  <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${bwStatus.bar}`}
+                      style={{ width: `${Math.min(100, (bandwidthIn / 100) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between text-[10.5px]">
+                    <span className="flex items-center gap-1 text-slate-400">
+                      <ArrowUp size={11} className="text-cyber-cyan" /> Outbound (from server)
+                    </span>
+                    <span className="font-mono font-semibold text-cyber-cyan">{bandwidthOut.toFixed(1)} Mbps</span>
+                  </div>
+                  <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
+                    <div
+                      className="h-full rounded-full bg-cyber-cyan transition-all duration-300"
+                      style={{ width: `${Math.min(100, (bandwidthOut / 100) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <MiniLineChart data={telemetry} dataKey="bandwidthIn" color="#f59e0b" domain={[0, 200]} unit=" Mbps" />
+
+              <p className="mt-1.5 border-t border-slate-800/60 pt-1.5 text-[9.5px] leading-4 text-slate-500">
+                Inbound = traffic arriving at the match server · Outbound = traffic it sends back.
+                Under a flood, inbound spikes while outbound stays low.
+              </p>
             </div>
           </>
         )}

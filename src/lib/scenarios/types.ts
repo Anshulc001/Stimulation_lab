@@ -7,6 +7,14 @@ export interface TelemetryTargetResult {
   packetLoss: number;
   playerDelta: number;
   health: ServerHealth;
+  /**
+   * Explicit simulated bandwidth (Mbps) toward/away from the match server.
+   * When omitted, the engine falls back to an estimate derived from the last
+   * generated packet batch (small packets => tiny values, which understates
+   * bandwidth-centric attacks like amplification).
+   */
+  bandwidthIn?: number;
+  bandwidthOut?: number;
 }
 
 export interface ScenarioDefinition {
@@ -20,6 +28,23 @@ export interface ScenarioDefinition {
   runCommand: string;
   aliases: string[];
   description: string;
+  /**
+   * Educational attack classification shown in the Attack Classification panel.
+   * Keeps the attack-path model explicit: DDoS needs a reachable service,
+   * session attacks need a separate credential.
+   */
+  classification: {
+    attack: string;
+    layer: string;
+    family: string;
+    requiresSessionToken: boolean;
+    requiresLanAccess: boolean;
+    target: string;
+    primaryImpact: string;
+    primaryDefense: string;
+    /** Scenario-specific teaching note shown under the Attack Classification panel. */
+    note: string;
+  };
   /**
    * Optional companion demo shown alongside the scenario in the Guide — e.g.
    * the `sniff --insecure` plaintext-traffic teaching case.

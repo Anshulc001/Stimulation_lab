@@ -46,6 +46,7 @@ export const TCP_SCAN_RESULTS: ScanResultRow[] = [
   { port: 143, proto: 'TCP', state: 'OPEN', service: 'imap' },
   { port: 443, proto: 'TCP', state: 'CLOSED', service: 'https' },
   { port: 3389, proto: 'TCP', state: 'FILTERED', service: 'ms-wbt' },
+  { port: MATCH_PORT, proto: 'TCP', state: 'OPEN', service: 'game-control' },
   { port: 8080, proto: 'TCP', state: 'FILTERED', service: 'http-alt' },
 ];
 
@@ -156,7 +157,7 @@ export function makeTlsPacket(): Packet {
 
 export function makeFloodPacket(): Packet {
   packetCounter += 1;
-  const length = randInt(1, 64);
+  const length = randInt(40, 60);
   const hex = randomHex(16);
   const spoofed = randomSpoofedIp();
   return {
@@ -165,9 +166,9 @@ export function makeFloodPacket(): Packet {
     time: elapsedSeconds(),
     src: spoofed,
     dst: `${MATCH_SERVER}:${MATCH_PORT}`,
-    protocol: 'UDP' as Protocol,
+    protocol: 'TCP' as Protocol,
     length,
-    info: `[MALFORMED] Spoofed SYN Flood Seq=${randInt(0, 999999)} TTL=${randInt(1, 32)}`,
+    info: `[SYN] Spoofed SYN Flood Seq=${randInt(0, 999999)} TTL=${randInt(1, 32)}`,
     malicious: true,
     hex,
     ascii: hexToAscii(hex),
@@ -253,6 +254,26 @@ export function makeAmplificationPacket(): Packet {
     protocol: 'UDP' as Protocol,
     length,
     info: `[AMPLIFIED] NTP MONLIST Reply Seq=${randInt(0, 999999)} (${length}B)`,
+    malicious: true,
+    hex,
+    ascii: hexToAscii(hex),
+  };
+}
+
+/** Small spoofed request from the attacker to an open reflector — start of the amplification chain. */
+export function makeReflectionRequestPacket(): Packet {
+  packetCounter += 1;
+  const reflector = NTP_REFLECTORS[randInt(0, NTP_REFLECTORS.length - 1)];
+  const hex = randomHex(16);
+  return {
+    id: packetCounter,
+    no: packetCounter,
+    time: elapsedSeconds(),
+    src: ATTACKER_IP,
+    dst: `${reflector}:${NTP_REFLECTOR_PORT}`,
+    protocol: 'UDP' as Protocol,
+    length: randInt(40, 60),
+    info: `[REFLECTION] Small request -> ${reflector}:${NTP_REFLECTOR_PORT}`,
     malicious: true,
     hex,
     ascii: hexToAscii(hex),

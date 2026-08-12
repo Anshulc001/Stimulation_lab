@@ -15,6 +15,7 @@ export type ScenarioSeverity = 'none' | 'recon' | 'moderate' | 'critical';
 export type TopologyEffect =
   | 'none'
   | 'recon-scan'
+  | 'sniff-capture'
   | 'mitm-reroute'
   | 'flood-pulse'
   | 'amplify-burst'

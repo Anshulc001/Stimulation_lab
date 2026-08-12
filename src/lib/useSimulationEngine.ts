@@ -49,10 +49,19 @@ export function useSimulationEngine() {
       );
 
       // Rough bandwidth estimate from the last packet batch's total size.
+      // Only used as a fallback when the scenario doesn't declare its own
+      // explicit bandwidth target (packet sizes alone understate
+      // bandwidth-centric attacks like amplification).
       const recentBytes = state.packets.slice(0, 40).reduce((sum, p) => sum + p.length, 0);
       const mbpsEstimate = (recentBytes * 8) / 1_000_000 / 0.1;
-      const newBandwidthIn = Math.max(0, lerp(state.bandwidthIn, mbpsEstimate * 0.7, 0.4));
-      const newBandwidthOut = Math.max(0, lerp(state.bandwidthOut, mbpsEstimate * 0.3, 0.4));
+      // Explicit scenario targets are intentionally decoupled from the packet
+      // byte counts above — packet sizes are tuned for the analyzer's visuals,
+      // while bandwidth targets carry the teaching value (e.g. amplification
+      // must read as a bandwidth-saturating attack).
+      const tgtIn = target.bandwidthIn ?? mbpsEstimate * 0.7;
+      const tgtOut = target.bandwidthOut ?? mbpsEstimate * 0.3;
+      const newBandwidthIn = Math.max(0, lerp(state.bandwidthIn, tgtIn, 0.4));
+      const newBandwidthOut = Math.max(0, lerp(state.bandwidthOut, tgtOut, 0.4));
 
       state.setTelemetry({
         cpuLoad: newCpu,

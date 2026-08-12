@@ -181,12 +181,17 @@ export const dnsampScenario: ScenarioDefinition = {
     const ramp = Math.min(1, elapsedSec / 4);
     const dampen = waf ? 0.4 : 1;
     return {
-      cpu: 20 + ramp * 80 * dampen,
+      // Bandwidth is the headline for amplification-style attacks: CPU stays
+      // mild (↑), while bandwidth/packet-loss/ping saturate (↑↑↑). Compare
+      // with SYN flood, where CPU/tick collapse is the dominant signature.
+      cpu: 22 + ramp * 20 * dampen,
       ping: 35 + ramp * 900 * dampen,
-      tick: Math.max(waf ? 25 : 0, 60 - ramp * 60 * dampen),
-      packetLoss: ramp * (waf ? 10 : 45),
-      playerDelta: -ramp * (waf ? 0.4 : 1.4),
-      health: ramp > 0.75 && !waf ? 'critical' : ramp > 0.3 && !waf ? 'degraded' : 'optimal',
+      tick: Math.max(waf ? 45 : 30, 60 - ramp * 30 * dampen),
+      packetLoss: ramp * (waf ? 15 : 70),
+      playerDelta: -ramp * (waf ? 0.5 : 1.8),
+      health: ramp > 0.65 && !waf ? 'critical' : ramp > 0.25 && !waf ? 'degraded' : 'optimal',
+      bandwidthIn: 15 + ramp * 75 * dampen,   // optional explicit Mbps targets
+      bandwidthOut: 4 + ramp * 10 * dampen,   // (fallback: packet-derived estimate)
     };
   },
   generatePackets: (waf) => {

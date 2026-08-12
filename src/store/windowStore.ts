@@ -68,6 +68,28 @@ export const useWindowStore = create<WindowStoreState>((set, get) => ({
     const clampedWidth = Math.min(width, Math.max(320, boundsWidth - 24));
     const clampedHeight = Math.min(height, Math.max(240, boundsHeight - 24));
 
+    // Keep the Scenario Control panel reachable: when a new window would land on
+    // top of it, nudge it to the right (or below) so its buttons stay clickable.
+    let x = Math.min(60 + offset, Math.max(0, boundsWidth - clampedWidth));
+    let y = Math.min(50 + offset, Math.max(0, boundsHeight - clampedHeight));
+    if (!isSmallScreen && appId !== 'scenarios') {
+      const scenario = get().windows.find((w) => w.appId === 'scenarios');
+      if (scenario && !scenario.minimized) {
+        const overlapX = x < scenario.x + scenario.width && x + clampedWidth > scenario.x;
+        const overlapY = y < scenario.y + scenario.height && y + clampedHeight > scenario.y;
+        if (overlapX && overlapY) {
+          const rightX = scenario.x + scenario.width + 8;
+          if (rightX + clampedWidth <= boundsWidth) {
+            x = rightX;
+          } else {
+            const belowY = scenario.y + scenario.height + 8;
+            y = Math.min(belowY, Math.max(0, boundsHeight - clampedHeight));
+            x = Math.min(60 + offset, Math.max(0, boundsWidth - clampedWidth));
+          }
+        }
+      }
+    }
+
     const newWindow: OpenWindow = isSmallScreen
       ? {
           id: `win-${instanceCounter}`,
@@ -85,8 +107,8 @@ export const useWindowStore = create<WindowStoreState>((set, get) => ({
           id: `win-${instanceCounter}`,
           appId,
           title,
-          x: Math.min(60 + offset, Math.max(0, boundsWidth - clampedWidth)),
-          y: Math.min(50 + offset, Math.max(0, boundsHeight - clampedHeight)),
+          x,
+          y,
           width: clampedWidth,
           height: clampedHeight,
           zIndex: get().nextZIndex,

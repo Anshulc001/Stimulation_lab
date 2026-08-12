@@ -24,10 +24,16 @@ const NODES: NodeDef[] = [
   { id: 'client', x: 60, y: 200, label: 'Client', sub: '192.168.1.45', icon: <Laptop size={18} />, color: '#22c55e', role: 'Game client / victim', region: 'Local LAN' },
   { id: 'attacker', x: 170, y: 300, label: 'Attacker (Kali)', sub: '192.168.1.50', icon: <Skull size={18} />, color: '#ef4444', role: 'Simulated attacker console', region: 'Local LAN' },
   { id: 'lobby', x: 280, y: 60, label: 'Web / API Server', sub: '10.0.0.20:443', icon: <ServerCog size={18} />, color: '#06b6d4', role: 'Web / API (TLS 443)', region: 'Simulated cloud' },
+  { id: 'reflector1', x: 330, y: 150, label: 'Reflector 1', sub: 'NTP :123', icon: <ServerCog size={18} />, color: '#f59e0b', role: 'Third-party NTP reflector', region: 'Open network' },
+  { id: 'reflector2', x: 415, y: 115, label: 'Reflector 2', sub: 'NTP :123', icon: <ServerCog size={18} />, color: '#f59e0b', role: 'Third-party NTP reflector', region: 'Open network' },
+  { id: 'reflector3', x: 500, y: 145, label: 'Reflector 3', sub: 'NTP :123', icon: <ServerCog size={18} />, color: '#f59e0b', role: 'Third-party NTP reflector', region: 'Open network' },
   { id: 'firewall', x: 390, y: 260, label: 'Edge Firewall / WAF', sub: 'ingress rate-limiter', icon: <Shield size={18} />, color: '#22c55e', role: 'Traffic-shaping mitigation', region: 'US-East edge' },
   { id: 'match', x: 500, y: 200, label: 'Game Server', sub: '10.0.0.10:7777 (UDP)', icon: <Server size={18} />, color: '#06b6d4', role: 'Authoritative game server', region: 'Simulated cloud' },
   { id: 'botnet', x: 280, y: 340, label: 'Attacker Botnet', sub: '1000+ spoofed hosts', icon: <Skull size={18} />, color: '#ef4444', role: 'Spoofed DDoS sources', region: 'Distributed / global' },
 ];
+
+/** Third-party NTP reflectors — only shown during the amplification scenario. */
+const REFLECTOR_IDS = ['reflector1', 'reflector2', 'reflector3'];
 
 function nodeById(id: string) {
   return NODES.find((n) => n.id === id)!;
@@ -133,7 +139,10 @@ export function NetworkTopology() {
     });
   };
 
-  const showBotnetActive = isAttack;
+  // The botnet is only the flood source for direct floods (SYN flood, Slowloris).
+  // Amplification is reflector-driven: attacker → reflectors → target, no botnet.
+  const botnetInvolved = effect === 'flood-pulse' || effect === 'slow-drip';
+  const showBotnetActive = botnetInvolved;
   const showFirewallActive = wafActive && isAttack;
 
   return (
@@ -146,7 +155,11 @@ export function NetworkTopology() {
             ? `${scenario.shortLabel} traffic overwhelming the match server link`
             : isRecovering
               ? 'Attacker blocked at the edge — link recovering'
-              : 'All links nominal'
+              : scenario.category === 'recon'
+                ? activeScenario === 'sniffing'
+                  ? 'Passive capture — observing local LAN traffic'
+                  : 'Port scan — probing which services are exposed'
+                : 'All links nominal'
         }
         accent={isAttack ? 'red' : 'green'}
         right={
@@ -186,15 +199,34 @@ export function NetworkTopology() {
           >
             <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
               {/* base links */}
-              <line x1={client.x} y1={client.y} x2={lobby.x} y2={lobby.y} stroke={effect === 'mitm-reroute' ? '#7f1d1d' : '#334155'} strokeWidth={1.5} opacity={effect === 'mitm-reroute' ? 0.3 : 1} />
+              <line
+                x1={client.x}
+                y1={client.y}
+                x2={lobby.x}
+                y2={lobby.y}
+                stroke={effect === 'mitm-reroute' && !showFirewallActive ? '#7f1d1d' : '#334155'}
+                strokeWidth={1.5}
+                opacity={effect === 'mitm-reroute' && !showFirewallActive ? 0.3 : 1}
+              />
               <line x1={lobby.x} y1={lobby.y} x2={match.x} y2={match.y} stroke="#334155" strokeWidth={1.5} />
 
-              {effect === 'mitm-reroute' && (
+              {effect === 'mitm-reroute' && !showFirewallActive && (
                 <>
                   <line x1={client.x} y1={client.y} x2={attacker.x} y2={attacker.y} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 4" />
                   <line x1={attacker.x} y1={attacker.y} x2={lobby.x} y2={lobby.y} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 4" />
                   <ParticleStream from="client" to="attacker" color="#ef4444" count={2} duration={1.2} idPrefix="mitm1" />
                   <ParticleStream from="attacker" to="lobby" color="#ef4444" count={2} duration={1.2} idPrefix="mitm2" />
+                </>
+              )}
+              {/* DAI / WAF on: spoofed reroute is dropped at the edge, direct path restored */}
+              {effect === 'mitm-reroute' && showFirewallActive && (
+                <>
+                  <line x1={attacker.x} y1={attacker.y} x2={firewall.x} y2={firewall.y} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="2 4" opacity={0.7} />
+                  <ParticleStream from="attacker" to="firewall" color="#ef4444" count={3} duration={0.6} idPrefix="mitm-drop" size={2.5} />
+                  {/* blocked spoof indicator at the firewall — r=32 clears the node disc */}
+                  <g transform={`translate(${firewall.x}, ${firewall.y})`}>
+                    <circle r={32} fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="3 3" className="animate-pulse-glow" />
+                  </g>
                 </>
               )}
 
@@ -206,41 +238,155 @@ export function NetworkTopology() {
                 opacity={isAttack ? 0.5 : 1}
               />
 
+              {/* Attacker control link — the Kali box commands the botnet during direct floods. */}
+              {botnetInvolved && (
+                <>
+                  <line
+                    x1={attacker.x}
+                    y1={attacker.y}
+                    x2={botnet.x}
+                    y2={botnet.y}
+                    stroke="#f59e0b"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    opacity={0.7}
+                    className="animate-dash"
+                  />
+                  <ParticleStream from="attacker" to="botnet" color="#f59e0b" count={2} duration={1.1} idPrefix="ab" size={2} />
+                </>
+              )}
+
               {effect === 'flood-pulse' && !showFirewallActive && (
                 <line x1={botnet.x} y1={botnet.y} x2={match.x} y2={match.y} stroke="#ef4444" strokeWidth={5} opacity={0.35} className="animate-pulse-glow" />
               )}
               {effect === 'amplify-burst' && !showFirewallActive && (
-                <line x1={botnet.x} y1={botnet.y} x2={match.x} y2={match.y} stroke="#ef4444" strokeWidth={7} opacity={0.3} className="animate-pulse-glow" />
+                <>
+                  {/* small requests: attacker → reflectors */}
+                  {REFLECTOR_IDS.map((rid) => {
+                    const r = nodeById(rid);
+                    return (
+                      <line
+                        key={`ar-${rid}`}
+                        x1={attacker.x}
+                        y1={attacker.y}
+                        x2={r.x}
+                        y2={r.y}
+                        stroke="#f59e0b"
+                        strokeWidth={1.5}
+                        strokeDasharray="2 3"
+                        opacity={0.75}
+                      />
+                    );
+                  })}
+                  {/* large responses: reflectors → match */}
+                  {REFLECTOR_IDS.map((rid) => {
+                    const r = nodeById(rid);
+                    return (
+                      <line
+                        key={`rm-${rid}`}
+                        x1={r.x}
+                        y1={r.y}
+                        x2={match.x}
+                        y2={match.y}
+                        stroke="#ef4444"
+                        strokeWidth={4}
+                        opacity={0.5}
+                        className="animate-pulse-glow"
+                      />
+                    );
+                  })}
+                </>
               )}
-              {effect === 'slow-drip' && (
-                <line x1={botnet.x} y1={botnet.y} x2={match.x} y2={match.y} stroke="#ef4444" strokeWidth={2} opacity={0.25} strokeDasharray="2 6" />
+              {effect === 'slow-drip' && !showFirewallActive && (
+                <line x1={botnet.x} y1={botnet.y} x2={lobby.x} y2={lobby.y} stroke="#ef4444" strokeWidth={2} opacity={0.25} strokeDasharray="2 6" />
+              )}
+              {effect === 'slow-drip' && showFirewallActive && (
+                <>
+                  <line x1={botnet.x} y1={botnet.y} x2={firewall.x} y2={firewall.y} stroke="#ef4444" strokeWidth={2.5} opacity={0.4} />
+                  <line x1={firewall.x} y1={firewall.y} x2={lobby.x} y2={lobby.y} stroke="#22c55e" strokeWidth={2} opacity={0.5} />
+                  <ParticleStream from="botnet" to="firewall" color="#ef4444" count={5} duration={0.9} idPrefix="sl-bf" size={2.5} />
+                  <ParticleStream from="firewall" to="lobby" color="#22c55e" count={2} duration={1.1} idPrefix="sl-fw" />
+                </>
               )}
 
-              {(effect === 'flood-pulse' || effect === 'amplify-burst') && (
+              {effect === 'flood-pulse' && (
                 <>
                   {showFirewallActive ? (
                     <>
                       <line x1={botnet.x} y1={botnet.y} x2={firewall.x} y2={firewall.y} stroke="#ef4444" strokeWidth={4} opacity={0.3} />
                       <line x1={firewall.x} y1={firewall.y} x2={match.x} y2={match.y} stroke="#22c55e" strokeWidth={2} opacity={0.5} />
-                      <ParticleStream from="botnet" to="firewall" color="#ef4444" count={effect === 'amplify-burst' ? 6 : 12} duration={effect === 'amplify-burst' ? 0.9 : 0.5} idPrefix="bf" size={effect === 'amplify-burst' ? 4.5 : 3.5} />
+                      <ParticleStream from="botnet" to="firewall" color="#ef4444" count={12} duration={0.4} idPrefix="bf" size={3} />
                       <ParticleStream from="firewall" to="match" color="#22c55e" count={3} duration={0.6} idPrefix="fm" />
                     </>
                   ) : (
-                    <ParticleStream
-                      from="botnet"
-                      to="match"
-                      color="#ef4444"
-                      count={effect === 'amplify-burst' ? 8 : 14}
-                      duration={effect === 'amplify-burst' ? 0.9 : 0.5}
-                      idPrefix="bm"
-                      size={effect === 'amplify-burst' ? 5 : 3.5}
-                    />
+                    // SYN flood: many small fast packets straight from the attacker sources.
+                    <ParticleStream from="botnet" to="match" color="#ef4444" count={18} duration={0.35} idPrefix="bm" size={2.5} />
                   )}
                 </>
               )}
 
-              {effect === 'slow-drip' && (
-                <ParticleStream from="botnet" to="match" color="#ef4444" count={3} duration={2.2} idPrefix="sl" size={2.5} />
+              {effect === 'amplify-burst' && (
+                <>
+                  {showFirewallActive ? (
+                    <>
+                      {/* the attacker still sends small requests to the reflectors */}
+                      {REFLECTOR_IDS.map((rid) => {
+                        const r = nodeById(rid);
+                        return (
+                          <line
+                            key={`ar-w-${rid}`}
+                            x1={attacker.x}
+                            y1={attacker.y}
+                            x2={r.x}
+                            y2={r.y}
+                            stroke="#f59e0b"
+                            strokeWidth={1.5}
+                            strokeDasharray="2 3"
+                            opacity={0.75}
+                          />
+                        );
+                      })}
+                      {REFLECTOR_IDS.map((rid, idx) => (
+                        <ParticleStream key={`arw-${rid}`} from="attacker" to={rid} color="#f59e0b" count={2} duration={0.9} idPrefix={`arw${idx}`} size={2} />
+                      ))}
+                      {REFLECTOR_IDS.map((rid) => {
+                        const r = nodeById(rid);
+                        return (
+                          <line
+                            key={`rf-${rid}`}
+                            x1={r.x}
+                            y1={r.y}
+                            x2={firewall.x}
+                            y2={firewall.y}
+                            stroke="#ef4444"
+                            strokeWidth={2.5}
+                            opacity={0.35}
+                          />
+                        );
+                      })}
+                      <line x1={firewall.x} y1={firewall.y} x2={match.x} y2={match.y} stroke="#22c55e" strokeWidth={2} opacity={0.5} />
+                      {REFLECTOR_IDS.map((rid, idx) => (
+                        <ParticleStream key={`rfp-${rid}`} from={rid} to="firewall" color="#ef4444" count={3} duration={0.7} idPrefix={`rfp${idx}`} size={4.5} />
+                      ))}
+                      <ParticleStream from="firewall" to="match" color="#22c55e" count={3} duration={0.6} idPrefix="fm2" />
+                    </>
+                  ) : (
+                    <>
+                      {/* small requests: attacker → reflectors */}
+                      {REFLECTOR_IDS.map((rid, idx) => (
+                        <ParticleStream key={`arp-${rid}`} from="attacker" to={rid} color="#f59e0b" count={2} duration={0.9} idPrefix={`arp${idx}`} size={2} />
+                      ))}
+                      {/* much larger responses: reflectors → match */}
+                      {REFLECTOR_IDS.map((rid, idx) => (
+                        <ParticleStream key={`rmp-${rid}`} from={rid} to="match" color="#ef4444" count={5} duration={0.7} idPrefix={`rmp${idx}`} size={6} />
+                      ))}
+                    </>
+                  )}
+                </>
+              )}
+
+              {effect === 'slow-drip' && !showFirewallActive && (
+                <ParticleStream from="botnet" to="lobby" color="#ef4444" count={3} duration={2.2} idPrefix="sl" size={2.5} />
               )}
 
               {effect === 'flood-pulse' && !showFirewallActive && (
@@ -251,30 +397,90 @@ export function NetworkTopology() {
                 </g>
               )}
 
-              {/* client <-> lobby heartbeat (skip while rerouted through MITM) */}
-              {effect !== 'mitm-reroute' && (
+              {/* client <-> lobby heartbeat (hidden while rerouted through MITM, restored when DAI drops the spoof) */}
+              {effect !== 'mitm-reroute' || showFirewallActive ? (
                 <ParticleStream from="client" to="lobby" color="#06b6d4" count={2} duration={2.2} idPrefix="cl" />
-              )}
+              ) : null}
               <ParticleStream from="lobby" to="match" color="#06b6d4" count={2} duration={2.2} idPrefix="lm" />
 
               {effect === 'none' && (
                 <ParticleStream from="client" to="match" color="#22c55e" count={3} duration={1.4} idPrefix="cm" />
               )}
               {effect === 'recon-scan' && (
-                <ParticleStream from="client" to="match" color="#06b6d4" count={4} duration={0.6} idPrefix="scan" size={2.5} />
+                <>
+                  {/* scan sweep: attacker probes the target's services */}
+                  <line
+                    x1={attacker.x}
+                    y1={attacker.y}
+                    x2={match.x}
+                    y2={match.y}
+                    stroke="#06b6d4"
+                    strokeWidth={1.5}
+                    strokeDasharray="5 5"
+                    opacity={0.8}
+                    className="animate-dash"
+                  />
+                  <ParticleStream from="attacker" to="match" color="#06b6d4" count={6} duration={0.45} idPrefix="scan" size={2.5} />
+                </>
+              )}
+              {effect === 'sniff-capture' && (
+                <>
+                  {/* passive capture: attacker observes traffic between the LAN hosts */}
+                  {[['client', 'oc'], ['lobby', 'ol'], ['match', 'om']].map(([nodeId, prefix]) => {
+                    const n = nodeById(nodeId);
+                    return (
+                      <g key={prefix}>
+                        <line
+                          x1={attacker.x}
+                          y1={attacker.y}
+                          x2={n.x}
+                          y2={n.y}
+                          stroke="#06b6d4"
+                          strokeWidth={1}
+                          strokeDasharray="2 4"
+                          opacity={0.5}
+                        />
+                        <ParticleStream from={nodeId} to="attacker" color="#06b6d4" count={2} duration={1.2} idPrefix={prefix} size={2} />
+                      </g>
+                    );
+                  })}
+                  {/* captured packets pulse at the attacker */}
+                  <circle
+                    cx={attacker.x}
+                    cy={attacker.y}
+                    r={14}
+                    fill="none"
+                    stroke="#06b6d4"
+                    strokeWidth={1.5}
+                    opacity={0.8}
+                    className="animate-pulse-glow"
+                  />
+                </>
               )}
 
               {/* nodes */}
               {NODES.map((n) => {
                 if (n.id === 'firewall' && !wafActive && !isAttack) return null;
+                const isReflector = n.id.startsWith('reflector');
+                if (isReflector && effect !== 'amplify-burst') return null;
                 const dimmed =
                   (n.id === 'botnet' && !showBotnetActive && !isRecovering) ||
                   (n.id === 'firewall' && !wafActive);
-                const blocked = n.id === 'botnet' && isRecovering;
+                const blocked =
+                  (n.id === 'botnet' && isRecovering) ||
+                  // attacker's spoofed reroute is dropped when DAI is active
+                  (n.id === 'attacker' && effect === 'mitm-reroute' && showFirewallActive);
                 const matchCritical = n.id === 'match' && serverHealth === 'critical';
                 const firewallGlow = n.id === 'firewall' && showFirewallActive;
+                const reflectorGlow = isReflector && effect === 'amplify-burst';
                 const ringColor =
-                  n.id === 'botnet' ? (blocked ? '#64748b' : '#ef4444') : matchCritical ? '#ef4444' : n.color;
+                  n.id === 'botnet' || (n.id === 'attacker' && blocked)
+                    ? blocked
+                      ? '#64748b'
+                      : '#ef4444'
+                    : matchCritical
+                      ? '#ef4444'
+                      : n.color;
                 return (
                   <g
                     key={n.id}
@@ -288,7 +494,11 @@ export function NetworkTopology() {
                       fill="#0b1120"
                       stroke={ringColor}
                       strokeWidth={2}
-                      className={(n.id === 'botnet' && isAttack) || matchCritical || firewallGlow ? 'animate-pulse-glow' : ''}
+                      className={
+                        (n.id === 'botnet' && botnetInvolved) || matchCritical || firewallGlow || reflectorGlow
+                          ? 'animate-pulse-glow'
+                          : ''
+                      }
                     />
                     <foreignObject x={-12} y={-12} width={24} height={24}>
                       <div style={{ color: ringColor }} className="flex h-full w-full items-center justify-center">

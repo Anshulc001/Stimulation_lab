@@ -16,6 +16,17 @@ export const recoveringScenario: ScenarioDefinition = {
   aliases: [],
   description:
     'The offending HWID/IP has been dropped at the edge. Server metrics recover smoothly back to baseline over a few seconds.',
+  classification: {
+    attack: 'None (Recovering)',
+    layer: '—',
+    family: 'Recovery',
+    requiresSessionToken: false,
+    requiresLanAccess: false,
+    target: '—',
+    primaryImpact: 'None',
+    primaryDefense: 'Mitigation already enforced',
+    note: 'Defense applied — the offending source has been dropped at the edge and telemetry is recovering toward baseline.',
+  },
   severity: 'none',
   topologyEffect: 'none',
   mitigable: false,

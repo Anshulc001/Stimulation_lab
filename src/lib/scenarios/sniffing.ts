@@ -11,6 +11,17 @@ export const sniffingScenario: ScenarioDefinition = {
   aliases: ['tcpdump', 'wireshark'],
   description:
     'Passive packet capture on the local subnet — traffic is observable, but encrypted (TLS) payloads keep session credentials hidden from the passive observer.',
+  classification: {
+    attack: 'Passive Packet Capture',
+    layer: 'L2–L7 (observed traffic)',
+    family: 'Recon / Credential Exposure',
+    requiresSessionToken: false,
+    requiresLanAccess: true,
+    target: 'Local observable traffic',
+    primaryImpact: 'Confidentiality',
+    primaryDefense: 'TLS / HTTPS + session controls',
+    note: 'Sniffing is passive observation — the attacker sees traffic, but TLS keeps payloads encrypted. Only plaintext HTTP exposes readable session tokens (see sniff --insecure).',
+  },
   demoVariant: {
     label: 'Packet Capture — Insecure',
     command: 'sniff --insecure',
@@ -18,8 +29,10 @@ export const sniffingScenario: ScenarioDefinition = {
       'The same passive capture against plaintext HTTP on the web / API server — a readable session token (Cookie: SESSION_ID=…) leaks in the captured payload. Encrypted vs. plaintext is the difference between observing traffic and reading secrets.',
   },
   severity: 'recon',
-  topologyEffect: 'none',
+  topologyEffect: 'sniff-capture',
   mitigable: false,
+  // Capture stream is finite — after the frames have streamed, return to baseline.
+  autoEndAfterSec: 6,
   telemetryTarget: () => ({
     cpu: 18,
     ping: 42,

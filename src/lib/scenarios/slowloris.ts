@@ -11,6 +11,17 @@ export const slowlorisScenario: ScenarioDefinition = {
   aliases: [],
   description:
     'A low-and-slow attack: many connections are opened and held with partial data, slowly exhausting the server connection pool over ~15s rather than a sudden spike.',
+  classification: {
+    attack: 'Slowloris',
+    layer: 'L7',
+    family: 'DoS / DDoS',
+    requiresSessionToken: false,
+    requiresLanAccess: false,
+    target: '10.0.0.20:80/TCP',
+    primaryImpact: 'Connection-pool exhaustion',
+    primaryDefense: 'Connection limits + request timeouts',
+    note: 'Slowloris exhausts a web server\'s connection pool — a reachable HTTP service is all it needs. No stolen session is required; session compromise is a separate attack path.',
+  },
   severity: 'moderate',
   topologyEffect: 'slow-drip',
   mitigable: true,
@@ -24,6 +35,10 @@ export const slowlorisScenario: ScenarioDefinition = {
       packetLoss: ramp * (waf ? 8 : 25),
       playerDelta: -ramp * (waf ? 0.15 : 0.6),
       health: ramp > 0.8 && !waf ? 'critical' : ramp > 0.35 && !waf ? 'degraded' : 'optimal',
+      // Slowloris holds connections open with dribbles of data — bandwidth is
+      // deliberately tiny; connection-pool exhaustion is the real impact.
+      bandwidthIn: 0.8 + ramp * 2.2 * dampen,
+      bandwidthOut: 0.5 + ramp * 1.5 * dampen,
     };
   },
   generatePackets: (waf) => {

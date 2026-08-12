@@ -11,7 +11,6 @@ import { Taskbar } from './Taskbar';
 import { AppLauncherOverlay } from './AppLauncherOverlay';
 import { Wallpaper } from './Wallpaper';
 import { OnboardingTour } from '../Onboarding/OnboardingTour';
-import { NetworkRoles } from '../Shared/NetworkRoles';
 
 const categoryMeta: Record<string, { className: string; icon: typeof ShieldCheck }> = {
   idle: { className: 'border-neon-green/40 bg-neon-green/10 text-neon-green', icon: ShieldCheck },
@@ -102,11 +101,6 @@ export function Desktop() {
               }
             />
           ))}
-        </div>
-
-        {/* Persistent network roles — the terminal is the attacker console */}
-        <div className="pointer-events-none absolute bottom-2 left-2 z-30">
-          <NetworkRoles />
         </div>
 
         {/* Windows */}

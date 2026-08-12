@@ -138,6 +138,17 @@ html, body, #root {
   animation: flash-border 1.4s ease-in-out infinite;
 }
 
+/* Scenario Control button — brief pop when its scenario is triggered, whether
+   from the button itself or a matching terminal command. */
+@keyframes btn-flash {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.12); box-shadow: 0 0 22px color-mix(in srgb, currentColor 45%, transparent); }
+  100% { transform: scale(1); box-shadow: 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+}
+.animate-btn-flash {
+  animation: btn-flash 0.55s ease-out;
+}
+
 .text-shadow-glow {
   text-shadow: 0 0 12px currentColor;
 }

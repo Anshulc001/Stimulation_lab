@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   Eye,
@@ -14,6 +15,7 @@ import { useSimStore } from '../store/simStore';
 import { executeCommand } from '../lib/commands';
 import { SCENARIO_LIST } from '../lib/scenarios/registry';
 import type { ScenarioId } from '../types';
+import { AttackClassification } from './Shared/AttackClassification';
 
 const ICONS: Record<ScenarioId, typeof Activity> = {
   baseline: Activity,
@@ -65,11 +67,29 @@ export function ScenarioBar() {
   const wafActive = useSimStore((s) => s.wafActive);
   const baseline = SCENARIO_LIST.find((s) => s.id === 'baseline')!;
 
+  // Flash the button belonging to the scenario that just became active — this
+  // fires both when a Scenario Control button is clicked AND when the same
+  // command is typed into the terminal, so the two stay visually connected.
+  const [flashId, setFlashId] = useState<ScenarioId | null>(null);
+  const prevScenario = useRef(activeScenario);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (prevScenario.current === activeScenario) return;
+    prevScenario.current = activeScenario;
+    setFlashId(activeScenario);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlashId(null), 1100);
+    return () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    };
+  }, [activeScenario]);
+
   return (
     <div className="border-b border-slate-800/80 bg-[#0b1120] px-4 py-2">
       <div className="flex flex-wrap items-center gap-2 py-0.5">
         <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Idle</span>
-        <ScenarioButton scenario={baseline} active={activeScenario === 'baseline'} />
+        <ScenarioButton scenario={baseline} active={activeScenario === 'baseline'} flashing={flashId === 'baseline'} />
         <button
           onClick={() => useSimStore.getState().resetAll()}
           className="flex items-center gap-1.5 rounded border border-slate-700 px-3 py-1.5 text-[11px] font-medium text-slate-400 transition-colors hover:border-slate-500 hover:bg-slate-800/50 hover:text-slate-200 active:scale-95"
@@ -103,7 +123,7 @@ export function ScenarioBar() {
               {group.label}
             </span>
             {scenarios.map((s) => (
-              <ScenarioButton key={s.id} scenario={s} active={activeScenario === s.id} />
+              <ScenarioButton key={s.id} scenario={s} active={activeScenario === s.id} flashing={flashId === s.id} />
             ))}
             {group.category === 'recon' && (
               <button
@@ -118,6 +138,8 @@ export function ScenarioBar() {
           </div>
         );
       })}
+
+      <AttackClassification />
     </div>
   );
 }
@@ -125,9 +147,11 @@ export function ScenarioBar() {
 function ScenarioButton({
   scenario,
   active,
+  flashing,
 }: {
   scenario: (typeof SCENARIO_LIST)[number];
   active: boolean;
+  flashing: boolean;
 }) {
   const Icon = ICONS[scenario.id];
   const accent = ACCENT[scenario.category] ?? ACCENT.idle;
@@ -135,12 +159,15 @@ function ScenarioButton({
     <button
       onClick={() => runScenario(scenario.id, scenario.runCommand)}
       title={scenario.description}
-      className={`flex items-center gap-1.5 rounded border bg-transparent px-3 py-1.5 text-[11px] font-medium transition-all duration-150 active:scale-95 ${
+      className={`group relative flex items-center gap-1.5 rounded border bg-transparent px-3 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-0.5 active:scale-95 ${
         active ? accent.active : accent.idle
-      }`}
+      } ${flashing ? 'animate-btn-flash' : ''}`}
     >
-      <Icon size={13} />
+      <Icon size={13} className={`transition-transform duration-200 group-hover:scale-125 ${active ? 'animate-pulse-glow' : ''}`} />
       {scenario.label}
+      {active && (
+        <span className={`ml-0.5 h-1.5 w-1.5 rounded-full bg-current animate-blink`} />
+      )}
     </button>
   );
 }

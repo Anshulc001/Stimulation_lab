@@ -12,6 +12,17 @@ export const portscanScenario: ScenarioDefinition = {
   aliases: ['portscan'],
   description:
     'An external host runs a combined TCP SYN + UDP scan over common ports on the match server — revealing which services are exposed (web on TCP, game on UDP/7777). Low impact, but often the first step before a targeted attack.',
+  classification: {
+    attack: 'Port Scan',
+    layer: 'L4 (TCP SYN + UDP)',
+    family: 'Reconnaissance',
+    requiresSessionToken: false,
+    requiresLanAccess: false,
+    target: '10.0.0.10 (multi-port)',
+    primaryImpact: 'Attack-surface mapping',
+    primaryDefense: 'IDS/IPS alert + firewall filtering',
+    note: 'Recon maps the attack surface. Finding a reachable service (e.g. UDP/7777) is all a network-flood scenario needs — no stolen session required.',
+  },
   severity: 'recon',
   topologyEffect: 'recon-scan',
   mitigable: false,

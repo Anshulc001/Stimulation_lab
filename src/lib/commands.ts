@@ -116,15 +116,17 @@ function runHping3(args: string[], raw: string) {
 
   if (isAmplify) {
     typeLine(`HPING ${target} (eth0 ${target}): amplification mode, reflector port ${port}`);
-    typeLine('Sending spoofed requests to open reflectors... (simulated)', 'output', 200);
+    typeLine(`Attack path: ${ATTACKER_IP} (attacker) ──▶ open reflectors ──▶ ${target}:${MATCH_PORT}/UDP (target)`, 'output', 200);
+    typeLine('Sending spoofed requests to open reflectors... (simulated)', 'output', 350);
     typeLine('[!] WARNING: Oversized reflected UDP responses detected inbound to match server.', 'error', 600);
     startAttack('amplification', target, port, 900);
     return;
   }
 
   typeLine(`HPING ${target} (eth0 ${target}): S set, 40 headers + 0 data bytes`);
-  typeLine(`Flooding target on port ${port}... press CTRL-C to stop (simulated)`, 'output', 200);
-  typeLine('', 'output', 300);
+  typeLine(`Attack path: ${ATTACKER_IP} (attacker) ──▶ ${target}:${port}/TCP (target)`, 'output', 200);
+  typeLine(`Flooding target on port ${port}... press CTRL-C to stop (simulated)`, 'output', 300);
+  typeLine('', 'output', 400);
   typeLine('[!] WARNING: Malicious traffic pattern detected on outbound interface.', 'error', 600);
   startAttack('synflood', target, port, 900);
 }
@@ -132,7 +134,8 @@ function runHping3(args: string[], raw: string) {
 function runSlowloris(args: string[]) {
   const target = args[0] || WEB_SERVER;
   typeLine(`Slowloris targeting ${target}:${HTTP_PORT} — opening sockets and trickling partial headers...`);
-  typeLine('[!] WARNING: Connection pool exhaustion pattern detected.', 'error', 400);
+  typeLine(`Attack path: ${ATTACKER_IP} (attacker) ──▶ ${target}:${HTTP_PORT}/TCP (web / API server)`, 'output', 200);
+  typeLine('[!] WARNING: Connection pool exhaustion pattern detected.', 'error', 450);
   startAttack('slowloris', target, String(HTTP_PORT), 700);
 }
 
@@ -192,6 +195,16 @@ function runNmap(args: string[]) {
         'success',
         0
       );
+      // Recon → target identification: feed the attack selection.
+      typeLine('', 'output', 250);
+      typeLine('[RECON]', 'output', 300);
+      typeLine(`Target discovered: ${target}`, 'output', 400);
+      typeLine(`Open service: UDP/${MATCH_PORT}`, 'output', 500);
+      typeLine('Service: GAME', 'output', 600);
+      typeLine('', 'output', 700);
+      typeLine('[INFO] Game service is reachable.', 'success', 800);
+      typeLine('[SIMULATION] Target can now be selected for a network-flood scenario.', 'output', 950);
+      typeLine('[INFO] Session credentials are not required for network-flood scenarios.', 'output', 1100);
       return;
     }
     i += 1;
@@ -222,9 +235,9 @@ function runNetstat() {
   ];
   const scenario = useSimStore.getState().activeScenario;
   if (scenario === 'synflood' || scenario === 'amplification' || scenario === 'recovering') {
-    lines.push(netstatLine('udp', '45.33.12.201:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
-    lines.push(netstatLine('udp', '88.198.44.19:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
-    lines.push(netstatLine('udp', '193.29.107.5:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
+    lines.push(netstatLine('tcp', '45.33.12.201:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
+    lines.push(netstatLine('tcp', '88.198.44.19:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
+    lines.push(netstatLine('tcp', '193.29.107.5:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
   }
   if (scenario === 'slowloris') {
     for (let i = 0; i < 6; i++) {
@@ -310,44 +323,58 @@ function runSniff(args: string[]) {
   typeLine(`Attacker: ${ATTACKER_IP}`, 'output', 150);
   typeLine('Capture target: Local LAN', 'output', 200);
   typeLine(`Observed client: ${CLIENT_IP}`, 'output', 250);
-  typeLine('', 'output', 350);
+  typeLine('', 'output', 320);
+  // Which hosts are visible on the segment — the "who am I observing" answer.
+  typeLine('Observed hosts on segment:', 'output', 320);
+  typeLine(`  ${GATEWAY_IP.padEnd(15)} gateway (LAN router)`, 'output', 360);
+  typeLine(`  ${CLIENT_IP.padEnd(15)} game client (victim)`, 'output', 400);
+  typeLine(`  ${MATCH_SERVER.padEnd(15)} game server :${MATCH_PORT}/UDP`, 'output', 440);
+  typeLine(`  ${WEB_SERVER.padEnd(15)} web / API server :${WEB_PORT} (TLS)`, 'output', 480);
+  typeLine('', 'output', 560);
 
   // Scenario B — plaintext demo: passive capture exposes a readable session token.
   if (isInsecureSniffArgs(args)) {
-    typeLine('Warning: plaintext application traffic detected.', 'error', 400);
+    typeLine('Warning: plaintext application traffic detected.', 'error', 700);
     pushSecurityEvent('critical', 'Plaintext HTTP session token exposed on local subnet');
-    printSniffFrames(
-      [
-        { proto: 'TCP', src: `${CLIENT_IP}:51442`, dst: `${WEB_SERVER}:${HTTP_PORT}`, label: 'HTTP', len: 253 },
-        { proto: 'TCP', src: `${WEB_SERVER}:${HTTP_PORT}`, dst: `${CLIENT_IP}:51442`, label: 'HTTP', len: 184 },
-        { proto: 'TCP', src: `${CLIENT_IP}:51443`, dst: `${WEB_SERVER}:${HTTP_PORT}`, label: 'HTTP', len: 137 },
-        { proto: 'TCP', src: `${WEB_SERVER}:${HTTP_PORT}`, dst: `${CLIENT_IP}:51443`, label: 'HTTP', len: 212 },
-      ],
-      () => {
-        typeLine('', 'output', 200);
-        typeLine('[!] Plaintext HTTP detected', 'error', 250);
-        typeLine('[!] Session token observed in captured payload', 'error', 450);
-        typeLine('', 'output', 550);
-        typeLine('    Cookie: SESSION_ID=SIM-7F31-A92C', 'output', 650);
-        typeLine('', 'output', 800);
-        typeLine('[CRITICAL] Session credential exposed to passive observer.', 'error', 900);
-      }
+    setTimeout(
+      () =>
+        printSniffFrames(
+          [
+            { proto: 'TCP', src: `${CLIENT_IP}:51442`, dst: `${WEB_SERVER}:${HTTP_PORT}`, label: 'HTTP', len: 253 },
+            { proto: 'TCP', src: `${WEB_SERVER}:${HTTP_PORT}`, dst: `${CLIENT_IP}:51442`, label: 'HTTP', len: 184 },
+            { proto: 'TCP', src: `${CLIENT_IP}:51443`, dst: `${WEB_SERVER}:${HTTP_PORT}`, label: 'HTTP', len: 137 },
+            { proto: 'TCP', src: `${WEB_SERVER}:${HTTP_PORT}`, dst: `${CLIENT_IP}:51443`, label: 'HTTP', len: 212 },
+          ],
+          () => {
+            typeLine('', 'output', 200);
+            typeLine('[!] Plaintext HTTP detected', 'error', 250);
+            typeLine('[!] Session token observed in captured payload', 'error', 450);
+            typeLine('', 'output', 550);
+            typeLine('    Cookie: SESSION_ID=SIM-7F31-A92C', 'output', 650);
+            typeLine('', 'output', 800);
+            typeLine('[CRITICAL] Session credential exposed to passive observer.', 'error', 900);
+            typeLine('', 'output', 1050);
+            typeLine('[INFO] Simulated response — session protection:', 'output', 1150);
+            typeLine('Session risk: HIGH', 'error', 1300);
+            typeLine('Session revoked · captured token is now invalid', 'success', 1500);
+          }
+        ),
+      750
     );
     return;
   }
 
   // Scenario A — encrypted default: capture is possible, contents are protected.
-  typeLine('Capturing observable local traffic...', 'output', 400);
+  typeLine('Capturing observable local traffic...', 'output', 700);
   pushSecurityEvent('warning', 'Promiscuous mode NIC detected on local subnet');
-  printSniffFrames(
+  setTimeout(() => printSniffFrames(
     [
       { proto: 'ARP', src: GATEWAY_IP, dst: CLIENT_IP, label: 'Who-has', len: 42 },
       { proto: 'UDP', src: `${CLIENT_IP}:${MATCH_PORT}`, dst: `${MATCH_SERVER}:${MATCH_PORT}`, label: 'Game', len: 158 },
       { proto: 'UDP', src: `${MATCH_SERVER}:${MATCH_PORT}`, dst: `${CLIENT_IP}:${MATCH_PORT}`, label: 'Game', len: 107 },
       { proto: 'TCP', src: `${CLIENT_IP}:54320`, dst: `${WEB_SERVER}:${WEB_PORT}`, label: 'TLS', len: 253 },
       { proto: 'TCP', src: `${WEB_SERVER}:${WEB_PORT}`, dst: `${CLIENT_IP}:54320`, label: 'TLS', len: 251 },
-      { proto: 'UDP', src: `${MATCH_SERVER}:${MATCH_PORT}`, dst: `${CLIENT_IP}:${MATCH_PORT}`, label: 'Game', len: 134 },
-    ],
+      { proto: 'UDP', src: `${MATCH_SERVER}:${MATCH_PORT}`, dst: `${CLIENT_IP}:${MATCH_PORT}`, label: 'Game', len: 134 },    ],
     () => {
       typeLine('', 'output', 200);
       typeLine('[!] Passive capture detected.', 'error', 250);
@@ -358,8 +385,37 @@ function runSniff(args: string[]) {
       typeLine('', 'output', 1200);
       typeLine('No plaintext session secrets exposed.', 'output', 1300);
     }
-  );
+  ),
+  750
+);
 }
+
+/** Attack-appropriate mitigation messaging — defense is not a single generic button. */
+const WAF_MITIGATION: Record<ScenarioId, { title: string; detail: string }> = {
+  synflood: {
+    title: 'SYN Protection: ENABLED',
+    detail: 'SYN queue pressure ↓ · half-open connections ↓ · server CPU ↓',
+  },
+  amplification: {
+    title: 'Reflection-source filtering + rate limiting applied',
+    detail: 'Bandwidth saturation ↓ · packet rate ↓ · packet loss ↓',
+  },
+  slowloris: {
+    title: 'Connection limits + request timeouts applied',
+    detail: 'Open connections: 980/1000 → 210/1000 · connection pool freed',
+  },
+  arpspoof: {
+    title: 'Dynamic ARP Inspection (DAI) armed',
+    detail: 'ARP mapping conflict detected — malicious ARP update rejected · spoofed replies dropped',
+  },
+  portscan: {
+    title: 'Firewall filtering + IDS alert raised',
+    detail: 'Scan source added to watchlist',
+  },
+  sniffing: { title: 'Rate limiting engaged', detail: 'Excess traffic dropped at the edge' },
+  baseline: { title: 'Rate limiting engaged', detail: 'Excess traffic dropped at the edge' },
+  recovering: { title: 'Rate limiting engaged', detail: 'Excess traffic dropped at the edge' },
+};
 
 function runWaf(args: string[]) {
   const mode = args[0];
@@ -370,8 +426,12 @@ function runWaf(args: string[]) {
   const { setWafActive, pushSecurityEvent, activeScenario } = useSimStore.getState();
   setWafActive(mode === 'on');
   if (mode === 'on' && isAttackScenario(activeScenario)) {
-    pushSecurityEvent('success', 'WAF Rule Applied: Rate-Limiting Excess Traffic');
-    typeLine('WAF mitigation engaged — excess traffic is now being rate-limited.', 'success');
+    const mitigation = WAF_MITIGATION[activeScenario];
+    pushSecurityEvent('success', `${getScenario(activeScenario).shortLabel}: mitigation applied`);
+    typeLine('[DETECTION] Malicious traffic pattern confirmed.', 'error');
+    typeLine(`[MITIGATION] ${mitigation.title}`, 'success', 300);
+    typeLine(`             ${mitigation.detail}`, 'output', 500);
+    typeLine('[RESULT] Telemetry recovering toward baseline.', 'success', 800);
   } else {
     typeLine(`WAF mitigation ${mode === 'on' ? 'armed' : 'disarmed'}.`, mode === 'on' ? 'success' : 'output');
   }

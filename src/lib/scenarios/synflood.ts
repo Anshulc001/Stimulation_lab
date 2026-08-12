@@ -10,7 +10,18 @@ export const synfloodScenario: ScenarioDefinition = {
   runCommand: 'hping3 -S --flood -p 7777 10.0.0.10',
   aliases: [],
   description:
-    'A classic SYN flood: thousands of spoofed-source TCP/UDP packets overwhelm the match server, spiking CPU and latency and eventually freezing the game tick loop entirely.',
+    'A classic SYN flood: thousands of spoofed-source TCP SYN packets overwhelm the match server, spiking CPU and latency and eventually freezing the game tick loop entirely.',
+  classification: {
+    attack: 'SYN Flood',
+    layer: 'L4',
+    family: 'DoS / DDoS',
+    requiresSessionToken: false,
+    requiresLanAccess: false,
+    target: '10.0.0.10:7777/TCP',
+    primaryImpact: 'CPU / tick rate',
+    primaryDefense: 'Rate limiting / SYN protection / upstream scrubbing',
+    note: 'A SYN flood is a pure availability attack — thousands of TCP handshakes against one reachable service. No stolen session is needed; session compromise is a separate attack path.',
+  },
   severity: 'critical',
   topologyEffect: 'flood-pulse',
   mitigable: true,
@@ -24,6 +35,10 @@ export const synfloodScenario: ScenarioDefinition = {
       packetLoss: ramp * (waf ? 12 : 55),
       playerDelta: -ramp * (waf ? 0.4 : 1.6),
       health: ramp > 0.75 && !waf ? 'critical' : ramp > 0.3 && !waf ? 'degraded' : 'optimal',
+      // SYN flood traffic is small TCP packets, so its bandwidth footprint is
+      // moderate (ELEVATED) — CPU/tick are the primary impact, not bandwidth.
+      bandwidthIn: 8 + ramp * 28 * dampen,
+      bandwidthOut: 3 + ramp * 8 * dampen,
     };
   },
   generatePackets: (waf) => {
