@@ -59,7 +59,7 @@ export function TelemetryMonitor() {
       <PaneHeader
         icon={<Server size={14} />}
         title="Match Server & Telemetry"
-        subtitle="MATCH-SRV-01 · 104.22.15.89:7777"
+        subtitle="MATCH-SRV-01 · 10.0.0.10:7777"
         accent={serverHealth === 'critical' ? 'red' : serverHealth === 'degraded' ? 'cyan' : 'green'}
         right={
           <span className={`flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-semibold ${health.text}`}>

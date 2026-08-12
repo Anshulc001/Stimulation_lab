@@ -10,6 +10,7 @@ import type {
   Theme,
 } from '../types';
 import { getScenario } from '../lib/scenarios/registry';
+import { ATTACKER_IP, CLIENT_IP, GATEWAY_IP, MATCH_PORT, MATCH_SERVER } from '../lib/packetGenerator';
 
 let eventCounter = 0;
 let terminalLineCounter = 0;
@@ -70,10 +71,15 @@ export interface SimState {
 }
 
 const INITIAL_TERMINAL_LINES: TerminalLine[] = [
-  { id: -4, type: 'success', text: 'CyberLab Terminal v1.0.0 — Client Simulation Shell' },
-  { id: -3, type: 'output', text: 'Connected to client 192.168.1.45 · session established.' },
-  { id: -2, type: 'output', text: "Type 'help' to list available commands, 'guide' for the full walkthrough, or use the Scenario buttons above." },
-  { id: -1, type: 'output', text: '' },
+  { id: -9, type: 'success', text: 'root@kali:~ (simulated attacker shell — no real traffic is sent)' },
+  { id: -8, type: 'output', text: '' },
+  { id: -7, type: 'success', text: 'CyberLab Terminal v1.0.0 — Attacker Console' },
+  { id: -6, type: 'output', text: `Attacker IP : ${ATTACKER_IP}` },
+  { id: -5, type: 'output', text: `Client IP   : ${CLIENT_IP}` },
+  { id: -4, type: 'output', text: `Gateway     : ${GATEWAY_IP}` },
+  { id: -3, type: 'output', text: `Game Server : ${MATCH_SERVER}:${MATCH_PORT}/UDP` },
+  { id: -2, type: 'output', text: '' },
+  { id: -1, type: 'output', text: "Type 'help' to list available commands, 'guide' for the full walkthrough, or use the Scenario buttons above." },
 ];
 
 function baseState() {

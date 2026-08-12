@@ -1,6 +1,19 @@
 import { useSimStore } from '../store/simStore';
 import { useWindowStore } from '../store/windowStore';
-import { makePingPacket } from './packetGenerator';
+import {
+  ATTACKER_IP,
+  CLIENT_IP,
+  GATEWAY_IP,
+  HTTP_PORT,
+  MATCH_PORT,
+  MATCH_SERVER,
+  NTP_REFLECTOR_PORT,
+  TCP_SCAN_RESULTS,
+  UDP_SCAN_RESULTS,
+  WEB_PORT,
+  WEB_SERVER,
+  makePingPacket,
+} from './packetGenerator';
 import { getScenario, isAttackScenario } from './scenarios/registry';
 import { COMMAND_REFERENCE, findCommandReference } from './commandReference';
 import type { ScenarioId } from '../types';
@@ -43,7 +56,7 @@ function runHelp(args: string[]) {
 }
 
 function runPing(args: string[]) {
-  const host = args[0] || '104.22.15.89';
+  const host = args[0] || MATCH_SERVER;
   typeLine(`PING ${host} (${host}): 56 data bytes`);
   let seq = 0;
   const iv = setInterval(() => {
@@ -60,7 +73,7 @@ function runPing(args: string[]) {
 }
 
 function runTraceroute(args: string[]) {
-  const host = args[0] || '104.22.15.89';
+  const host = args[0] || MATCH_SERVER;
   typeLine(`traceroute to ${host}, 8 hops max`);
   const hops = [
     '192.168.1.1',
@@ -82,7 +95,7 @@ function runTraceroute(args: string[]) {
 }
 
 function runWhois(args: string[]) {
-  const host = args[0] || '104.22.15.89';
+  const host = args[0] || MATCH_SERVER;
   typeLine(`whois lookup for ${host}`);
   typeLine(`  registrar:    CyberLab Simulated Registry`);
   typeLine(`  asn:          AS${13000 + (host.split('.').reduce((a, b) => a + Number(b) || 0, 0) % 900)}`);
@@ -92,10 +105,14 @@ function runWhois(args: string[]) {
 }
 
 function runHping3(args: string[], raw: string) {
-  const target = args[args.length - 1] || '104.22.15.89';
+  const target = args[args.length - 1] || MATCH_SERVER;
   const isAmplify = raw.includes('--amplify');
   const portMatch = raw.match(/-p\s*(\d+)/);
-  const port = portMatch ? portMatch[1] : isAmplify ? '123' : '7777';
+  const port = portMatch
+    ? portMatch[1]
+    : isAmplify
+      ? String(NTP_REFLECTOR_PORT)
+      : String(MATCH_PORT);
 
   if (isAmplify) {
     typeLine(`HPING ${target} (eth0 ${target}): amplification mode, reflector port ${port}`);
@@ -113,17 +130,26 @@ function runHping3(args: string[], raw: string) {
 }
 
 function runSlowloris(args: string[]) {
-  const target = args[0] || '104.22.15.89';
-  typeLine(`Slowloris targeting ${target}:80 — opening sockets and trickling partial headers...`);
+  const target = args[0] || WEB_SERVER;
+  typeLine(`Slowloris targeting ${target}:${HTTP_PORT} — opening sockets and trickling partial headers...`);
   typeLine('[!] WARNING: Connection pool exhaustion pattern detected.', 'error', 400);
-  startAttack('slowloris', target, '80', 700);
+  startAttack('slowloris', target, String(HTTP_PORT), 700);
 }
 
 function runArpspoof(args: string[]) {
-  const gateway = args.includes('-t') ? args[args.indexOf('-t') + 1] : '192.168.1.1';
-  const target = args.includes('-r') ? args[args.indexOf('-r') + 1] : '104.22.15.10';
-  typeLine(`arpspoof: poisoning ARP cache — impersonating ${gateway} to reroute traffic toward ${target}`);
-  typeLine('[!] WARNING: Gratuitous ARP replies detected on local subnet.', 'error', 400);
+  const victim = args.includes('-t') ? args[args.indexOf('-t') + 1] : CLIENT_IP;
+  const gateway = args.includes('-r') ? args[args.indexOf('-r') + 1] : GATEWAY_IP;
+  typeLine('arpspoof: poisoning ARP cache — impersonating the gateway to reroute client traffic');
+  typeLine('');
+  typeLine('[SIMULATION]', 'output', 150);
+  typeLine(`Attacker: ${ATTACKER_IP}`, 'output', 200);
+  typeLine(`Victim:   ${victim}`, 'output', 250);
+  typeLine(`Gateway:  ${gateway}`, 'output', 300);
+  typeLine('', 'output', 400);
+  typeLine('ARP poisoning simulation started.', 'output', 450);
+  typeLine('Client traffic is now being represented as:', 'output', 500);
+  typeLine('Client → Attacker → Gateway', 'output', 550);
+  typeLine('[!] WARNING: Gratuitous ARP replies detected on local subnet.', 'error', 600);
   const { setScenario, pushSecurityEvent } = useSimStore.getState();
   setTimeout(() => {
     setScenario('arpspoof');
@@ -132,27 +158,44 @@ function runArpspoof(args: string[]) {
   }, 700);
 }
 
+function scanRow(proto: string, port: number, state: string, svc: string): string {
+  return `${`${port}/${proto}`.padEnd(13)}${state.padEnd(12)}${svc}`;
+}
+
+function scanHeader(label: string): string {
+  return `${label.padEnd(13)}${'STATE'.padEnd(12)}SERVICE`;
+}
+
 function runNmap(args: string[]) {
-  const target = args[args.length - 1] || '104.22.15.89';
-  typeLine(`Starting Nmap-lite scan on ${target}`);
+  const target = args[args.length - 1] || MATCH_SERVER;
+  typeLine(`Starting Nmap-lite combined TCP SYN + UDP scan on ${target}`);
   useSimStore.getState().setScenario('portscan');
-  const ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 3389, 7777, 8080];
+
+  typeLine('', 'output', 250);
+  typeLine(scanHeader('TCP PORT'), 'output', 250);
   let i = 0;
   const iv = setInterval(() => {
-    if (i >= ports.length) {
+    if (i < TCP_SCAN_RESULTS.length) {
+      const r = TCP_SCAN_RESULTS[i];
+      typeLine(scanRow(r.proto.toLowerCase(), r.port, r.state, r.service), r.state === 'OPEN' ? 'success' : 'output');
+    } else if (i === TCP_SCAN_RESULTS.length) {
+      typeLine('', 'output', 0);
+      typeLine(scanHeader('UDP PORT'), 'output', 0);
+    } else if (i < TCP_SCAN_RESULTS.length + 1 + UDP_SCAN_RESULTS.length) {
+      const r = UDP_SCAN_RESULTS[i - TCP_SCAN_RESULTS.length - 1];
+      typeLine(scanRow(r.proto.toLowerCase(), r.port, r.state, r.service), r.state === 'OPEN' ? 'success' : 'output');
+    } else {
       clearInterval(iv);
-      typeLine('');
-      typeLine(`Nmap done: ${ports.length} ports scanned on ${target}`, 'success');
+      typeLine('', 'output', 0);
+      typeLine(
+        `Nmap-lite done: ${TCP_SCAN_RESULTS.length} TCP ports + ${UDP_SCAN_RESULTS.length} UDP ports scanned`,
+        'success',
+        0
+      );
       return;
     }
-    const port = ports[i];
-    const isGamePort = port === 7777;
-    const state = isGamePort ? 'open' : ['open', 'closed', 'filtered'][Math.floor(Math.random() * 3)];
-    const svc = isGamePort ? 'game' : ['ftp', 'ssh', 'telnet', 'smtp', 'dns', 'http', 'pop3', 'imap', 'https', 'ms-wbt', 'game', 'http-alt'][i];
-    const proto = isGamePort ? 'UDP' : 'TCP';
-    typeLine(`PORT ${port}/${proto.toLowerCase()}  STATE: ${state.toUpperCase()}  SERVICE: ${svc}`, state === 'open' ? 'success' : 'output');
     i += 1;
-  }, 350);
+  }, 300);
 }
 
 function startAttack(id: ScenarioId, target: string, port: string, delay: number) {
@@ -164,25 +207,29 @@ function startAttack(id: ScenarioId, target: string, port: string, delay: number
   }, delay);
 }
 
+function netstatLine(proto: string, local: string, foreign: string, state: string) {
+  return `${proto.padEnd(5)}  ${local.padEnd(19)}${foreign.padEnd(21)}${state}`;
+}
+
 function runNetstat() {
   const lines = [
     'Active Internet connections',
-    'Proto  Local Address           Foreign Address         State',
-    'udp    192.168.1.45:51422      104.22.15.89:7777       ESTABLISHED',
-    'tcp    192.168.1.45:51888      104.22.15.10:443        ESTABLISHED',
-    'tcp    192.168.1.45:51889      104.22.15.10:443        TIME_WAIT',
-    'udp    192.168.1.45:51423      104.22.15.89:7777       ESTABLISHED',
+    netstatLine('Proto', 'Local Address', 'Foreign Address', 'State'),
+    netstatLine('udp', `${CLIENT_IP}:51422`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'),
+    netstatLine('tcp', `${CLIENT_IP}:51888`, `${WEB_SERVER}:${WEB_PORT}`, 'ESTABLISHED'),
+    netstatLine('tcp', `${CLIENT_IP}:51889`, `${WEB_SERVER}:${WEB_PORT}`, 'TIME_WAIT'),
+    netstatLine('udp', `${CLIENT_IP}:51423`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'),
   ];
   const scenario = useSimStore.getState().activeScenario;
   if (scenario === 'synflood' || scenario === 'amplification' || scenario === 'recovering') {
-    lines.push('udp    45.33.12.201:0          104.22.15.89:7777       SYN_FLOOD');
-    lines.push('udp    88.198.44.19:0          104.22.15.89:7777       SYN_FLOOD');
-    lines.push('udp    193.29.107.5:0          104.22.15.89:7777       SYN_FLOOD');
+    lines.push(netstatLine('udp', '45.33.12.201:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
+    lines.push(netstatLine('udp', '88.198.44.19:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
+    lines.push(netstatLine('udp', '193.29.107.5:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
   }
   if (scenario === 'slowloris') {
     for (let i = 0; i < 6; i++) {
       lines.push(
-        `tcp    ${randomIp()}:0             104.22.15.89:80         ${Math.random() > 0.5 ? 'ESTABLISHED' : 'FIN_WAIT_1'}`
+        netstatLine('tcp', `${randomIp()}:0`, `${WEB_SERVER}:${HTTP_PORT}`, Math.random() > 0.5 ? 'ESTABLISHED' : 'FIN_WAIT_1')
       );
     }
   }
@@ -190,7 +237,7 @@ function runNetstat() {
     lines.push('');
     lines.push('ARP cache table');
     lines.push('Address              HWtype  HWaddress           Flags');
-    lines.push('192.168.1.1          ether   00:1a:2b:77:ff:ee   C  (SPOOFED — expected 00:1a:2b:00:11:22)');
+    lines.push(`${GATEWAY_IP}          ether   00:1a:2b:77:ff:ee   C  (SPOOFED — expected 00:1a:2b:00:11:22)`);
   }
   lines.forEach((l) => typeLine(l));
 }
@@ -215,32 +262,103 @@ function runStatus() {
   typeLine(`hwid banned: ${s.hwidBanned}`);
 }
 
-function runSniff() {
-  const { setScenario, pushSecurityEvent } = useSimStore.getState();
-  setScenario('sniffing');
-  typeLine('Starting passive packet capture on eth0...');
-  typeLine('Listening for unencrypted session fragments...', 'output', 300);
-  pushSecurityEvent('warning', 'Promiscuous mode NIC detected on local subnet');
+interface SniffFrame {
+  proto: string;
+  src: string;
+  dst: string;
+  label: string;
+  len: number;
+}
+
+let sniffStreamInterval: ReturnType<typeof setInterval> | null = null;
+
+function printSniffFrames(frames: SniffFrame[], onComplete: () => void) {
+  if (sniffStreamInterval) clearInterval(sniffStreamInterval);
   let count = 0;
   const iv = setInterval(() => {
-    count += 1;
-    const isUdp = Math.random() > 0.3;
-    const proto = isUdp ? 'UDP' : 'TCP';
-    const port = isUdp ? 7777 : [443, 80, 27015][Math.floor(Math.random() * 3)];
-    const len = Math.floor(Math.random() * 200) + 60;
-    const srcIp = Math.random() > 0.5 ? '192.168.1.45' : '104.22.15.89';
-    const dstIp = srcIp === '192.168.1.45' ? '104.22.15.89' : '192.168.1.45';
+    const f = frames[count];
     typeLine(
-      `${count.toString().padStart(4, ' ')}  ${proto} ${srcIp}:${port} -> ${dstIp}:${port}  Len=${len}`,
+      `${String(count + 1).padStart(4, ' ')}  ${f.proto} ${f.src.padEnd(22)}-> ${f.dst.padEnd(
+        22
+      )}  ${f.label.padEnd(5)} Len=${f.len}`,
       'output',
       0
     );
-    if (count >= 10) {
+    count += 1;
+    if (count >= frames.length) {
       clearInterval(iv);
-      typeLine('');
-      typeLine(`Capture complete: ${count} packets captured on eth0`, 'success');
+      sniffStreamInterval = null;
+      onComplete();
     }
-  }, 500);
+  }, 450);
+  sniffStreamInterval = iv;
+}
+
+/** True when the user asked for the plaintext demo, in any form they may have copied from help. */
+export function isInsecureSniffArgs(args: string[]): boolean {
+  return args.some(
+    (a) => a.replace(/[[\]]/g, '').toLowerCase() === '--insecure' || a === '-i'
+  );
+}
+
+function runSniff(args: string[]) {
+  const { setScenario, pushSecurityEvent } = useSimStore.getState();
+  setScenario('sniffing');
+  typeLine('Starting simulated passive packet capture on eth0...');
+
+  typeLine('', 'output', 150);
+  typeLine(`Attacker: ${ATTACKER_IP}`, 'output', 150);
+  typeLine('Capture target: Local LAN', 'output', 200);
+  typeLine(`Observed client: ${CLIENT_IP}`, 'output', 250);
+  typeLine('', 'output', 350);
+
+  // Scenario B — plaintext demo: passive capture exposes a readable session token.
+  if (isInsecureSniffArgs(args)) {
+    typeLine('Warning: plaintext application traffic detected.', 'error', 400);
+    pushSecurityEvent('critical', 'Plaintext HTTP session token exposed on local subnet');
+    printSniffFrames(
+      [
+        { proto: 'TCP', src: `${CLIENT_IP}:51442`, dst: `${WEB_SERVER}:${HTTP_PORT}`, label: 'HTTP', len: 253 },
+        { proto: 'TCP', src: `${WEB_SERVER}:${HTTP_PORT}`, dst: `${CLIENT_IP}:51442`, label: 'HTTP', len: 184 },
+        { proto: 'TCP', src: `${CLIENT_IP}:51443`, dst: `${WEB_SERVER}:${HTTP_PORT}`, label: 'HTTP', len: 137 },
+        { proto: 'TCP', src: `${WEB_SERVER}:${HTTP_PORT}`, dst: `${CLIENT_IP}:51443`, label: 'HTTP', len: 212 },
+      ],
+      () => {
+        typeLine('', 'output', 200);
+        typeLine('[!] Plaintext HTTP detected', 'error', 250);
+        typeLine('[!] Session token observed in captured payload', 'error', 450);
+        typeLine('', 'output', 550);
+        typeLine('    Cookie: SESSION_ID=SIM-7F31-A92C', 'output', 650);
+        typeLine('', 'output', 800);
+        typeLine('[CRITICAL] Session credential exposed to passive observer.', 'error', 900);
+      }
+    );
+    return;
+  }
+
+  // Scenario A — encrypted default: capture is possible, contents are protected.
+  typeLine('Capturing observable local traffic...', 'output', 400);
+  pushSecurityEvent('warning', 'Promiscuous mode NIC detected on local subnet');
+  printSniffFrames(
+    [
+      { proto: 'ARP', src: GATEWAY_IP, dst: CLIENT_IP, label: 'Who-has', len: 42 },
+      { proto: 'UDP', src: `${CLIENT_IP}:${MATCH_PORT}`, dst: `${MATCH_SERVER}:${MATCH_PORT}`, label: 'Game', len: 158 },
+      { proto: 'UDP', src: `${MATCH_SERVER}:${MATCH_PORT}`, dst: `${CLIENT_IP}:${MATCH_PORT}`, label: 'Game', len: 107 },
+      { proto: 'TCP', src: `${CLIENT_IP}:54320`, dst: `${WEB_SERVER}:${WEB_PORT}`, label: 'TLS', len: 253 },
+      { proto: 'TCP', src: `${WEB_SERVER}:${WEB_PORT}`, dst: `${CLIENT_IP}:54320`, label: 'TLS', len: 251 },
+      { proto: 'UDP', src: `${MATCH_SERVER}:${MATCH_PORT}`, dst: `${CLIENT_IP}:${MATCH_PORT}`, label: 'Game', len: 134 },
+    ],
+    () => {
+      typeLine('', 'output', 200);
+      typeLine('[!] Passive capture detected.', 'error', 250);
+      typeLine('[+] Traffic is observable on the simulated local segment.', 'success', 450);
+      typeLine('[+] TLS payloads are encrypted.', 'success', 650);
+      typeLine('[+] Session credentials: NOT VISIBLE', 'success', 850);
+      typeLine('[+] Token contents: ENCRYPTED', 'success', 1050);
+      typeLine('', 'output', 1200);
+      typeLine('No plaintext session secrets exposed.', 'output', 1300);
+    }
+  );
 }
 
 function runWaf(args: string[]) {
@@ -285,7 +403,7 @@ function runBan() {
 
   if (!isAttackScenario(activeScenario)) {
     setScenario('synflood');
-    pushSecurityEvent('critical', 'SYN Flood initiated against 104.22.15.89:7777');
+    pushSecurityEvent('critical', `SYN Flood initiated against ${MATCH_SERVER}:${MATCH_PORT}`);
     typeLine('Malicious flood detected on ingress — spinning up anti-cheat enforcement...', 'error');
   } else {
     typeLine('Running anti-cheat enforcement pass...');
@@ -363,7 +481,8 @@ export function executeCommand(raw: string) {
       runStatus();
       break;
     case 'sniff':
-      runSniff();
+    case 'sniff-insecure':
+      runSniff(cmd === 'sniff-insecure' ? ['--insecure'] : args);
       break;
     case 'waf':
       runWaf(args);

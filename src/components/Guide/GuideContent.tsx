@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Terminal as TerminalIcon } from 'lucide-react';
 import { SCENARIO_LIST } from '../../lib/scenarios/registry';
 import { COMMAND_REFERENCE } from '../../lib/commandReference';
@@ -36,15 +37,28 @@ export function GuideContent() {
             </h3>
             <div className="space-y-2">
               {scenarios.map((s) => (
-                <div key={s.id} className={`rounded border p-2.5 ${CATEGORY_COLOR[category]}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-100">{s.label}</span>
-                    <code className="rounded bg-black/30 px-1.5 py-0.5 text-[10px] text-slate-300">
-                      {s.terminalCommand}
-                    </code>
+                <Fragment key={s.id}>
+                  <div className={`rounded border p-2.5 ${CATEGORY_COLOR[category]}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-100">{s.label}</span>
+                      <code className="rounded bg-black/30 px-1.5 py-0.5 text-[10px] text-slate-300">
+                        {s.terminalCommand}
+                      </code>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-400">{s.description}</p>
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-400">{s.description}</p>
-                </div>
+                  {s.demoVariant && (
+                    <div className="rounded border border-dashed border-alert-red/40 bg-alert-red/5 p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-alert-red">{s.demoVariant.label}</span>
+                        <code className="rounded bg-black/30 px-1.5 py-0.5 text-[10px] text-slate-300">
+                          {s.demoVariant.command}
+                        </code>
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400">{s.demoVariant.description}</p>
+                    </div>
+                  )}
+                </Fragment>
               ))}
             </div>
           </div>

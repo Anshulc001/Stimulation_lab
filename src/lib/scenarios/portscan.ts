@@ -1,16 +1,17 @@
 import type { ScenarioDefinition } from './types';
-import { makeGameTickPacket, makePortScanPacket } from '../packetGenerator';
+import { makeGameTickPacket, makePortScanPacket, makeUdpPortScanPacket } from '../packetGenerator';
+import type { Packet } from '../../types';
 
 export const portscanScenario: ScenarioDefinition = {
   id: 'portscan',
   label: 'Trigger Port Scan',
   shortLabel: 'Port Scan',
   category: 'recon',
-  terminalCommand: 'nmap -sS <ip>',
-  runCommand: 'nmap -sS 104.22.15.89',
+  terminalCommand: 'nmap -sS -sU <ip>',
+  runCommand: 'nmap -sS -sU 10.0.0.10',
   aliases: ['portscan'],
   description:
-    'An external host sweeps common ports on the match server looking for open services. Low impact, but often the first step before a targeted attack.',
+    'An external host runs a combined TCP SYN + UDP scan over common ports on the match server — revealing which services are exposed (web on TCP, game on UDP/7777). Low impact, but often the first step before a targeted attack.',
   severity: 'recon',
   topologyEffect: 'recon-scan',
   mitigable: false,
@@ -23,8 +24,11 @@ export const portscanScenario: ScenarioDefinition = {
     playerDelta: 0,
     health: 'optimal',
   }),
-  generatePackets: () =>
-    Math.random() > 0.4
-      ? [makePortScanPacket()]
-      : [makePortScanPacket(), makeGameTickPacket()],
+  generatePackets: () => {
+    const packets: Packet[] = [];
+    if (Math.random() > 0.4) packets.push(makePortScanPacket());
+    if (Math.random() > 0.6) packets.push(makeUdpPortScanPacket());
+    if (Math.random() > 0.5) packets.push(makeGameTickPacket());
+    return packets;
+  },
 };

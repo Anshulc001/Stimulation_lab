@@ -171,7 +171,7 @@ export const dnsampScenario: ScenarioDefinition = {
   shortLabel: 'DNS Amp',
   category: 'attack',                 // 'idle' | 'recon' | 'attack' | 'defense'
   terminalCommand: 'hping3 --udp --spoof <ip> -p 53',   // shown in Guide
-  runCommand: 'hping3 --udp --spoof 104.22.15.89 -p 53', // executed by the Scenario button
+  runCommand: 'hping3 --udp --spoof 10.0.0.10 -p 53', // executed by the Scenario button
   aliases: [],
   description: 'Spoofed queries to open DNS resolvers return huge amplified responses.',
   severity: 'critical',               // 'none' | 'recon' | 'moderate' | 'critical'

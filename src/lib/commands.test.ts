@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCommandLine } from './commands';
+import { isInsecureSniffArgs, parseCommandLine } from './commands';
 
 describe('parseCommandLine', () => {
   it('parses a simple command with no args', () => {
@@ -7,20 +7,20 @@ describe('parseCommandLine', () => {
   });
 
   it('parses a command with args', () => {
-    expect(parseCommandLine('ping 104.22.15.89')).toEqual({ cmd: 'ping', args: ['104.22.15.89'] });
+    expect(parseCommandLine('ping 10.0.0.10')).toEqual({ cmd: 'ping', args: ['10.0.0.10'] });
   });
 
   it('parses flags and multiple args', () => {
-    expect(parseCommandLine('hping3 -S --flood -p 7777 104.22.15.89')).toEqual({
+    expect(parseCommandLine('hping3 -S --flood -p 7777 10.0.0.10')).toEqual({
       cmd: 'hping3',
-      args: ['-S', '--flood', '-p', '7777', '104.22.15.89'],
+      args: ['-S', '--flood', '-p', '7777', '10.0.0.10'],
     });
   });
 
   it('collapses extra whitespace', () => {
-    expect(parseCommandLine('  nmap   -sS   104.22.15.89  ')).toEqual({
+    expect(parseCommandLine('  nmap   -sS   10.0.0.10  ')).toEqual({
       cmd: 'nmap',
-      args: ['-sS', '104.22.15.89'],
+      args: ['-sS', '10.0.0.10'],
     });
   });
 
@@ -33,5 +33,24 @@ describe('parseCommandLine', () => {
       cmd: 'iptables',
       args: ['-A', 'INPUT', '-s', '45.33.12.201', '-j', 'DROP'],
     });
+  });
+});
+
+describe('isInsecureSniffArgs', () => {
+  it('accepts the canonical --insecure flag', () => {
+    expect(isInsecureSniffArgs(['--insecure'])).toBe(true);
+  });
+
+  it('accepts the bracketed form copied from help text', () => {
+    expect(isInsecureSniffArgs(['[--insecure]'])).toBe(true);
+  });
+
+  it('accepts the shorthand -i flag', () => {
+    expect(isInsecureSniffArgs(['-i'])).toBe(true);
+  });
+
+  it('rejects a plain sniff invocation', () => {
+    expect(isInsecureSniffArgs([])).toBe(false);
+    expect(isInsecureSniffArgs(['10.0.0.10'])).toBe(false);
   });
 });

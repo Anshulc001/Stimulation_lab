@@ -20,8 +20,8 @@ type Stage =
   | 'in-match';
 
 const STAGE_LABEL: Partial<Record<Stage, string>> = {
-  'connecting-lobby': 'Connecting to Lobby Server 104.22.15.10:443…',
-  'connecting-match': 'Connecting to Match Server 104.22.15.89:7777…',
+  'connecting-lobby': 'Connecting to Web / API Server 10.0.0.20:443…',
+  'connecting-match': 'Connecting to Match Server 10.0.0.10:7777…',
   'loading-map': 'Loading Erangel…',
   dropping: 'Deploying from aircraft…',
 };
@@ -226,7 +226,7 @@ export function BgmiApp() {
 
             <div className="mt-2 flex items-center justify-between text-[9.5px] text-slate-500">
               <span>SQUAD: You, Bot_Alpha, Bot_Bravo, Bot_Charlie</span>
-              <span>104.22.15.89:7777</span>
+              <span>10.0.0.10:7777 (UDP)</span>
             </div>
           </div>
         )}

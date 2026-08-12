@@ -7,7 +7,7 @@ export const amplificationScenario: ScenarioDefinition = {
   shortLabel: 'Amplification',
   category: 'attack',
   terminalCommand: 'hping3 --amplify -p 123 <ip>',
-  runCommand: 'hping3 --amplify -p 123 104.22.15.89',
+  runCommand: 'hping3 --amplify -p 123 10.0.0.10',
   aliases: ['amplify'],
   description:
     'A UDP reflection/amplification attack (e.g. NTP monlist): small spoofed requests to open reflectors return massively oversized responses, saturating the match server bandwidth faster than any other attack.',

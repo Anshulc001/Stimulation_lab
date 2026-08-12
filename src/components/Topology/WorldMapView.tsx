@@ -15,7 +15,7 @@ const CONTINENTS = [
 
 const MARKERS = [
   { id: 'client', x: 470, y: 110, label: 'Player Client', sub: 'Asia-Southeast', color: '#22c55e' },
-  { id: 'lobby', x: 355, y: 95, label: 'Lobby Server', sub: 'EU-West', color: '#06b6d4' },
+  { id: 'lobby', x: 355, y: 95, label: 'Web / API Server', sub: 'Simulated cloud', color: '#06b6d4' },
   { id: 'match', x: 110, y: 130, label: 'Match Server', sub: 'US-East', color: '#06b6d4' },
 ];
 

@@ -8,7 +8,8 @@ import {
   makePingPacket,
   makePortScanPacket,
   makeSlowlorisPacket,
-  makeSniffedPacket,
+  makeTlsPacket,
+  makeUdpPortScanPacket,
 } from './packetGenerator';
 import type { Packet } from '../types';
 
@@ -37,10 +38,12 @@ describe('packetGenerator', () => {
     expect(() => assertWellFormedPacket(makeLobbyPacket())).not.toThrow();
   });
 
-  it('generates well-formed sniffed packets marked malicious', () => {
-    const p = makeSniffedPacket();
+  it('generates well-formed TLS capture packets marked benign', () => {
+    const p = makeTlsPacket();
     assertWellFormedPacket(p);
-    expect(p.malicious).toBe(true);
+    expect(p.protocol).toBe('TCP');
+    expect(p.malicious).toBe(false);
+    expect(p.info).toContain('encrypted');
   });
 
   it('generates well-formed flood packets with spoofed sources', () => {
@@ -56,6 +59,14 @@ describe('packetGenerator', () => {
     assertWellFormedPacket(p1);
     assertWellFormedPacket(p2);
     expect(p1.dst).not.toBe(p2.dst);
+  });
+
+  it('generates well-formed UDP port scan probes', () => {
+    const p = makeUdpPortScanPacket();
+    assertWellFormedPacket(p);
+    expect(p.protocol).toBe('UDP');
+    expect(p.malicious).toBe(false);
+    expect(p.info).toContain('UDP-SCAN');
   });
 
   it('generates well-formed ARP spoof packets', () => {
@@ -84,7 +95,7 @@ describe('packetGenerator', () => {
   });
 
   it('produces a plausible ping reply', () => {
-    const { line, ms } = makePingPacket('104.22.15.89', 1);
+    const { line, ms } = makePingPacket('10.0.0.10', 1);
     expect(line).toContain('icmp_seq=1');
     expect(ms).toBeGreaterThan(0);
   });

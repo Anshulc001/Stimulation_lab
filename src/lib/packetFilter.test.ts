@@ -8,7 +8,7 @@ function makePacket(overrides: Partial<Packet> = {}): Packet {
     no: 1,
     time: '0.000000',
     src: '192.168.1.45',
-    dst: '104.22.15.89:7777',
+    dst: '10.0.0.10:7777',
     protocol: 'UDP',
     length: 64,
     info: 'Player State Update Seq=1',
@@ -44,16 +44,16 @@ describe('parsePacketFilter', () => {
   });
 
   it('supports ip.addr== matching either src or dst', () => {
-    const predicate = parsePacketFilter('ip.addr==104.22.15.89');
-    expect(predicate(makePacket({ dst: '104.22.15.89:7777' }))).toBe(true);
-    expect(predicate(makePacket({ src: '104.22.15.89', dst: '1.2.3.4' }))).toBe(true);
+    const predicate = parsePacketFilter('ip.addr==10.0.0.10');
+    expect(predicate(makePacket({ dst: '10.0.0.10:7777' }))).toBe(true);
+    expect(predicate(makePacket({ src: '10.0.0.10', dst: '1.2.3.4' }))).toBe(true);
     expect(predicate(makePacket({ src: '1.2.3.4', dst: '5.6.7.8' }))).toBe(false);
   });
 
   it('combines multiple tokens with AND semantics', () => {
-    const predicate = parsePacketFilter('proto==udp 104.22.15.89');
-    expect(predicate(makePacket({ protocol: 'UDP', dst: '104.22.15.89:7777' }))).toBe(true);
-    expect(predicate(makePacket({ protocol: 'TCP', dst: '104.22.15.89:7777' }))).toBe(false);
+    const predicate = parsePacketFilter('proto==udp 10.0.0.10');
+    expect(predicate(makePacket({ protocol: 'UDP', dst: '10.0.0.10:7777' }))).toBe(true);
+    expect(predicate(makePacket({ protocol: 'TCP', dst: '10.0.0.10:7777' }))).toBe(false);
     expect(predicate(makePacket({ protocol: 'UDP', dst: '1.2.3.4' }))).toBe(false);
   });
 });

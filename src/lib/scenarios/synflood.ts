@@ -7,7 +7,7 @@ export const synfloodScenario: ScenarioDefinition = {
   shortLabel: 'SYN Flood',
   category: 'attack',
   terminalCommand: 'hping3 -S --flood -p 7777 <ip>',
-  runCommand: 'hping3 -S --flood -p 7777 104.22.15.89',
+  runCommand: 'hping3 -S --flood -p 7777 10.0.0.10',
   aliases: [],
   description:
     'A classic SYN flood: thousands of spoofed-source TCP/UDP packets overwhelm the match server, spiking CPU and latency and eventually freezing the game tick loop entirely.',

@@ -105,6 +105,16 @@ export function ScenarioBar() {
             {scenarios.map((s) => (
               <ScenarioButton key={s.id} scenario={s} active={activeScenario === s.id} />
             ))}
+            {group.category === 'recon' && (
+              <button
+                onClick={() => executeCommand('sniff --insecure')}
+                title="sniff --insecure — demonstrate how plaintext HTTP traffic leaks a readable session token (teaching demo)"
+                className="flex items-center gap-1.5 rounded border border-dashed border-slate-700 px-3 py-1.5 text-[11px] font-medium text-slate-500 transition-all duration-150 hover:border-alert-red/50 hover:text-alert-red hover:bg-alert-red/5 active:scale-95"
+              >
+                <Eye size={13} />
+                Capture Insecure
+              </button>
+            )}
           </div>
         );
       })}

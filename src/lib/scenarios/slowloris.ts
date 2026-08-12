@@ -7,7 +7,7 @@ export const slowlorisScenario: ScenarioDefinition = {
   shortLabel: 'Slowloris',
   category: 'attack',
   terminalCommand: 'slowloris <ip>',
-  runCommand: 'slowloris 104.22.15.89',
+  runCommand: 'slowloris 10.0.0.20',
   aliases: [],
   description:
     'A low-and-slow attack: many connections are opened and held with partial data, slowly exhausting the server connection pool over ~15s rather than a sudden spike.',

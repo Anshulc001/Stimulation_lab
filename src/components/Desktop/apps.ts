@@ -32,7 +32,7 @@ const BgmiApp = lazy(() => import('../Bgmi/BgmiApp').then((m) => ({ default: m.B
 export const APPS: AppDef[] = [
   {
     id: 'terminal',
-    title: 'Terminal — root@client-pc',
+    title: 'Terminal — root@kali',
     shortLabel: 'Terminal',
     icon: TerminalSquare,
     iconColor: '#22c55e',

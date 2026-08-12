@@ -84,7 +84,7 @@ export function Terminal() {
       <PaneHeader
         icon={<TerminalSquare size={14} />}
         title="Command Console"
-        subtitle="root@client-pc:~ (simulated shell — no real traffic is sent)"
+        subtitle="root@kali:~ (simulated attacker shell — no real traffic is sent)"
         accent="green"
         right={
           <span className="flex items-center gap-1 text-[10px] font-medium text-slate-500">

@@ -21,11 +21,12 @@ interface NodeDef {
 }
 
 const NODES: NodeDef[] = [
-  { id: 'client', x: 60, y: 200, label: 'Player Client', sub: '192.168.1.45', icon: <Laptop size={18} />, color: '#22c55e', role: 'Game client', region: 'Local subnet' },
-  { id: 'lobby', x: 280, y: 60, label: 'Master Lobby Server', sub: '104.22.15.10', icon: <ServerCog size={18} />, color: '#06b6d4', role: 'Matchmaking / lobby', region: 'EU-West' },
+  { id: 'client', x: 60, y: 200, label: 'Client', sub: '192.168.1.45', icon: <Laptop size={18} />, color: '#22c55e', role: 'Game client / victim', region: 'Local LAN' },
+  { id: 'attacker', x: 170, y: 300, label: 'Attacker (Kali)', sub: '192.168.1.50', icon: <Skull size={18} />, color: '#ef4444', role: 'Simulated attacker console', region: 'Local LAN' },
+  { id: 'lobby', x: 280, y: 60, label: 'Web / API Server', sub: '10.0.0.20:443', icon: <ServerCog size={18} />, color: '#06b6d4', role: 'Web / API (TLS 443)', region: 'Simulated cloud' },
   { id: 'firewall', x: 390, y: 260, label: 'Edge Firewall / WAF', sub: 'ingress rate-limiter', icon: <Shield size={18} />, color: '#22c55e', role: 'Traffic-shaping mitigation', region: 'US-East edge' },
-  { id: 'match', x: 500, y: 200, label: 'Match Server', sub: '104.22.15.89:7777', icon: <Server size={18} />, color: '#06b6d4', role: 'Authoritative game server', region: 'US-East' },
-  { id: 'botnet', x: 280, y: 340, label: 'Attacker Botnet', sub: '1000+ spoofed hosts', icon: <Skull size={18} />, color: '#ef4444', role: 'Malicious traffic source', region: 'Distributed / global' },
+  { id: 'match', x: 500, y: 200, label: 'Game Server', sub: '10.0.0.10:7777 (UDP)', icon: <Server size={18} />, color: '#06b6d4', role: 'Authoritative game server', region: 'Simulated cloud' },
+  { id: 'botnet', x: 280, y: 340, label: 'Attacker Botnet', sub: '1000+ spoofed hosts', icon: <Skull size={18} />, color: '#ef4444', role: 'Spoofed DDoS sources', region: 'Distributed / global' },
 ];
 
 function nodeById(id: string) {
@@ -86,6 +87,7 @@ export function NetworkTopology() {
   const effect = scenario.topologyEffect;
 
   const client = nodeById('client');
+  const attacker = nodeById('attacker');
   const lobby = nodeById('lobby');
   const match = nodeById('match');
   const botnet = nodeById('botnet');
@@ -189,10 +191,10 @@ export function NetworkTopology() {
 
               {effect === 'mitm-reroute' && (
                 <>
-                  <line x1={client.x} y1={client.y} x2={botnet.x} y2={botnet.y} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 4" />
-                  <line x1={botnet.x} y1={botnet.y} x2={lobby.x} y2={lobby.y} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 4" />
-                  <ParticleStream from="client" to="botnet" color="#ef4444" count={2} duration={1.2} idPrefix="mitm1" />
-                  <ParticleStream from="botnet" to="lobby" color="#ef4444" count={2} duration={1.2} idPrefix="mitm2" />
+                  <line x1={client.x} y1={client.y} x2={attacker.x} y2={attacker.y} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 4" />
+                  <line x1={attacker.x} y1={attacker.y} x2={lobby.x} y2={lobby.y} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 4" />
+                  <ParticleStream from="client" to="attacker" color="#ef4444" count={2} duration={1.2} idPrefix="mitm1" />
+                  <ParticleStream from="attacker" to="lobby" color="#ef4444" count={2} duration={1.2} idPrefix="mitm2" />
                 </>
               )}
 

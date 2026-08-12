@@ -16,10 +16,19 @@ export interface ScenarioDefinition {
   category: ScenarioCategory;
   /** Display template shown in Guide/help, e.g. "hping3 -S --flood -p <port> <ip>". */
   terminalCommand: string;
-  /** Concrete, directly-executable command used by the ScenarioBar button, e.g. "hping3 -S --flood -p 7777 104.22.15.89". */
+  /** Concrete, directly-executable command used by the ScenarioBar button, e.g. "hping3 -S --flood -p 7777 10.0.0.10". */
   runCommand: string;
   aliases: string[];
   description: string;
+  /**
+   * Optional companion demo shown alongside the scenario in the Guide — e.g.
+   * the `sniff --insecure` plaintext-traffic teaching case.
+   */
+  demoVariant?: {
+    label: string;
+    command: string;
+    description: string;
+  };
   severity: ScenarioSeverity;
   topologyEffect: TopologyEffect;
   /** Whether WAF mitigation has any effect on this scenario at all. */
