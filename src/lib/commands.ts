@@ -226,13 +226,13 @@ function netstatLine(proto: string, local: string, foreign: string, state: strin
 
 function runNetstat() {
   const s = useSimStore.getState();
-  const lines = [
-    'Active Internet connections',
-    netstatLine('Proto', 'Local Address', 'Foreign Address', 'State'),
-    netstatLine('tcp', `${CLIENT_IP}:51888`, `${WEB_SERVER}:${WEB_PORT}`, 'ESTABLISHED'),
-    netstatLine('tcp', `${CLIENT_IP}:51889`, `${WEB_SERVER}:${WEB_PORT}`, 'TIME_WAIT'),
-  ];
-  // The game UDP socket only exists while the match server is running.
+  const lines = ['Active Internet connections', netstatLine('Proto', 'Local Address', 'Foreign Address', 'State')];
+  // The lobby TLS socket only exists while the client has a live lobby session.
+  if (s.lobbyActive) {
+    lines.push(netstatLine('tcp', `${CLIENT_IP}:51888`, `${WEB_SERVER}:${WEB_PORT}`, 'ESTABLISHED'));
+    lines.push(netstatLine('tcp', `${CLIENT_IP}:51889`, `${WEB_SERVER}:${WEB_PORT}`, 'TIME_WAIT'));
+  }
+  // The game UDP socket only exists while the client is in a match.
   if (s.gameActive) {
     lines.push(netstatLine('udp', `${CLIENT_IP}:51422`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'));
     lines.push(netstatLine('udp', `${CLIENT_IP}:51423`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'));
@@ -269,6 +269,7 @@ function runStatus() {
   const s = useSimStore.getState();
   const scenario = getScenario(s.activeScenario);
   typeLine(`scenario: ${scenario.label} (${s.activeScenario})`);
+  typeLine(`lobby session: ${s.lobbyActive ? `CONNECTED (${WEB_SERVER}:${WEB_PORT}/TLS)` : 'not connected'}`);
   typeLine(`game server: ${s.gameActive ? `RUNNING (${MATCH_SERVER}:${MATCH_PORT}/UDP)` : 'STOPPED'}`);
   typeLine(`server health: ${s.serverHealth}`);
   typeLine(`cpu load: ${s.cpuLoad.toFixed(0)}%`);
@@ -281,14 +282,16 @@ function runStatus() {
 }
 
 function runStartServer() {
-  const { setGameActive } = useSimStore.getState();
+  const { setLobbyActive, setGameActive } = useSimStore.getState();
+  setLobbyActive(true);
   setGameActive(true);
   typeLine(`Game server started: ${MATCH_SERVER}:${MATCH_PORT}/UDP is now accepting connections.`, 'success');
   typeLine('Game-tick traffic will now appear in the packet analyzer.', 'output', 200);
 }
 
 function runStopServer() {
-  const { setGameActive, setScenario, activeScenario } = useSimStore.getState();
+  const { setLobbyActive, setGameActive, setScenario, activeScenario } = useSimStore.getState();
+  setLobbyActive(false);
   setGameActive(false);
   // A stopped server ends any running demo — return to the idle baseline.
   if (activeScenario !== 'baseline') setScenario('baseline');

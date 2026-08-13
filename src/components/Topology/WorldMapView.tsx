@@ -30,9 +30,11 @@ const BOTNET_MARKERS = [
 
 export function WorldMapView() {
   const activeScenario = useSimStore((s) => s.activeScenario);
+  const lobbyActive = useSimStore((s) => s.lobbyActive);
   const gameActive = useSimStore((s) => s.gameActive);
   const isAttack = isAttackScenario(activeScenario);
   const match = MARKERS.find((m) => m.id === 'match')!;
+  const lobby = MARKERS.find((m) => m.id === 'lobby')!;
 
   return (
     <svg viewBox="0 0 620 320" className="h-full w-full">
@@ -41,8 +43,20 @@ export function WorldMapView() {
         <path key={i} d={d} fill="#101a2c" stroke="#1e293b" strokeWidth={1} />
       ))}
 
-      {/* control link */}
-      <line x1={MARKERS[1].x} y1={MARKERS[1].y} x2={match.x} y2={match.y} stroke="#334155" strokeDasharray="3 4" strokeWidth={1} />
+      {/* control link — only lit while a lobby or match session is live */}
+      <line
+        x1={lobby.x}
+        y1={lobby.y}
+        x2={match.x}
+        y2={match.y}
+        stroke="#334155"
+        strokeDasharray="3 4"
+        strokeWidth={1}
+        opacity={lobbyActive || gameActive ? 1 : 0.2}
+      />
+      {lobbyActive && (
+        <line x1={MARKERS[0].x} y1={MARKERS[0].y} x2={lobby.x} y2={lobby.y} stroke="#1e293b" strokeWidth={1.5} />
+      )}
       {gameActive && (
         <line x1={MARKERS[0].x} y1={MARKERS[0].y} x2={match.x} y2={match.y} stroke={isAttack ? '#7f1d1d' : '#1e293b'} strokeWidth={1.5} opacity={isAttack ? 0.4 : 1} />
       )}

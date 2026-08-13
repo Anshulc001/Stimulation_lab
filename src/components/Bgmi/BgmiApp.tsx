@@ -70,9 +70,10 @@ export function BgmiApp() {
     clearTimers();
     setJoined(1);
     setStage('connecting-lobby');
-    // Connecting to the match server starts the game session — game-tick
-    // traffic and live telemetry (tick rate, players) now flow in the sim.
-    useSimStore.getState().setGameActive(true);
+    // Matchmaking opens a session with the Web / API (lobby) server. The
+    // match server connection only comes up once the player actually enters
+    // the game (see the in-match effect below).
+    useSimStore.getState().setLobbyActive(true);
     goto('matchmaking', STAGE_DURATION['connecting-lobby']!);
   };
 
@@ -98,14 +99,19 @@ export function BgmiApp() {
     if (stage === 'connecting-match') goto('loading-map', STAGE_DURATION['connecting-match']!);
     if (stage === 'loading-map') goto('dropping', STAGE_DURATION['loading-map']!);
     if (stage === 'dropping') goto('in-match', STAGE_DURATION.dropping!);
+    // Entering the match starts the live game session — game-tick traffic and
+    // telemetry (tick rate, players) now flow in the sim.
+    if (stage === 'in-match') useSimStore.getState().setGameActive(true);
   }, [stage]);
 
   const leaveMatch = () => {
     clearTimers();
     setStage('menu');
     setJoined(0);
-    // Leaving the match ends the game session — back to idle background traffic.
-    useSimStore.getState().setGameActive(false);
+    // Leaving the match ends both sessions — back to idle background traffic.
+    const { setGameActive, setLobbyActive } = useSimStore.getState();
+    setGameActive(false);
+    setLobbyActive(false);
   };
 
   const connected = Math.round(playerCount);

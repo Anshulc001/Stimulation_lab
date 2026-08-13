@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import type { ComponentType } from 'react';
 import { TerminalSquare, Radar, Server, Network, SlidersHorizontal, BookOpen, Gamepad2 } from 'lucide-react';
+import { useSimStore } from '../../store/simStore';
 
 export interface AppDef {
   id: string;
@@ -11,6 +12,8 @@ export interface AppDef {
   component: ComponentType;
   defaultWidth: number;
   defaultHeight: number;
+  /** Cleanup hook run when the window is closed (e.g. BGMI ending its sessions). */
+  onClose?: () => void;
 }
 
 const Terminal = lazy(() => import('../Terminal/Terminal').then((m) => ({ default: m.Terminal })));
@@ -99,6 +102,13 @@ export const APPS: AppDef[] = [
     component: BgmiApp,
     defaultWidth: 480,
     defaultHeight: 560,
+    // Closing the BGMI window ends the client's sessions everywhere — the
+    // topology, Wireshark and telemetry all read these flags.
+    onClose: () => {
+      const { setLobbyActive, setGameActive } = useSimStore.getState();
+      setLobbyActive(false);
+      setGameActive(false);
+    },
   },
 ];
 

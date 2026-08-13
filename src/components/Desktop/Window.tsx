@@ -21,8 +21,6 @@ export function Window({ win, appDef, boundsWidth, boundsHeight }: WindowProps) 
   const Component = appDef.component;
   const isMobile = boundsWidth < 640;
 
-  if (win.minimized) return null;
-
   const onTitlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isMobile || win.maximized) return;
     focusWindow(win.id);
@@ -62,9 +60,14 @@ export function Window({ win, appDef, boundsWidth, boundsHeight }: WindowProps) 
     resizeRef.current = null;
   };
 
-  const windowStyle = isMobile
-    ? { left: 0, top: 0, width: boundsWidth, height: boundsHeight, zIndex: win.zIndex }
-    : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex };
+  const windowStyle = {
+    ...(isMobile
+      ? { left: 0, top: 0, width: boundsWidth, height: boundsHeight, zIndex: win.zIndex }
+      : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex }),
+    // Minimized windows stay mounted (display: none) so app state — e.g. an
+    // in-progress BGMI match — survives minimize/restore instead of resetting.
+    ...(win.minimized ? { display: 'none' as const } : {}),
+  };
 
   return (
     <div
@@ -101,7 +104,12 @@ export function Window({ win, appDef, boundsWidth, boundsHeight }: WindowProps) 
           </button>
         )}
         <button
-          onClick={() => closeWindow(win.id)}
+          onClick={() => {
+            // App-level cleanup (e.g. BGMI closing its lobby/match sessions)
+            // runs before the window is removed.
+            appDef.onClose?.();
+            closeWindow(win.id);
+          }}
           className={`rounded text-slate-400 transition-colors hover:bg-alert-red/80 hover:text-white ${isMobile ? 'p-3' : 'p-1.5'}`}
           title="Close"
           aria-label={`Close ${win.title}`}

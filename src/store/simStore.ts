@@ -39,6 +39,10 @@ export interface SimState {
   bandwidthOut: number;
   hwidBanned: boolean;
   wafActive: boolean;
+  /** Whether the game client has a live session with the Web / API (lobby) server.
+   *  Becomes true when the client starts matchmaking (BGMI → FIND MATCH or the
+   *  terminal `start` command) and false when leaving the match / stopping. */
+  lobbyActive: boolean;
   /** Whether the game client is connected to / playing on the match server.
    *  When false, the default state, Wireshark shows normal background LAN
    *  traffic and telemetry reads as "server idle" — no game packets flow. */
@@ -69,6 +73,7 @@ export interface SimState {
   clearTerminal: () => void;
   setHwidBanned: (b: boolean) => void;
   setWafActive: (b: boolean) => void;
+  setLobbyActive: (b: boolean) => void;
   setGameActive: (b: boolean) => void;
   blockIp: (ip: string) => void;
   setTheme: (t: Theme) => void;
@@ -103,6 +108,7 @@ function baseState() {
     bandwidthOut: 0.05,
     hwidBanned: false,
     wafActive: false,
+    lobbyActive: false,
     gameActive: false,
     blockedIps: [] as string[],
     packets: [] as Packet[],
@@ -127,10 +133,6 @@ export function createSimStore() {
       set({
         activeScenario: id,
         scenarioStartedAt: Date.now(),
-        // Recon / attack / defense scenarios all demo a live match server, so
-        // launching one implies the game is running. Only the idle baseline
-        // leaves the server stopped.
-        gameActive: def.category !== 'idle' ? true : get().gameActive,
       });
     },
 
@@ -203,6 +205,11 @@ export function createSimStore() {
     setWafActive: (b) => {
       get().pushIncident(b ? 'success' : 'info', `WAF Mitigation ${b ? 'Enabled' : 'Disabled'}`);
       set({ wafActive: b });
+    },
+
+    setLobbyActive: (b) => {
+      get().pushIncident(b ? 'success' : 'info', `Lobby Session ${b ? 'Connected' : 'Disconnected'}`);
+      set({ lobbyActive: b });
     },
 
     setGameActive: (b) => {

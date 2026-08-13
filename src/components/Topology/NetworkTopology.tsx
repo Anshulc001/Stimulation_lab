@@ -83,6 +83,7 @@ export function NetworkTopology() {
   const activeScenario = useSimStore((s) => s.activeScenario);
   const serverHealth = useSimStore((s) => s.serverHealth);
   const wafActive = useSimStore((s) => s.wafActive);
+  const lobbyActive = useSimStore((s) => s.lobbyActive);
   const gameActive = useSimStore((s) => s.gameActive);
   const view = useUiStore((s) => s.topologyView);
   const setView = useUiStore((s) => s.setTopologyView);
@@ -128,7 +129,20 @@ export function NetworkTopology() {
 
   const openNode = (n: NodeDef) => {
     if (dragRef.current?.moved) return;
-    const health = n.id === 'match' ? statusFor(serverHealth) : { text: 'Nominal', color: 'text-neon-green' };
+    const health =
+      n.id === 'match'
+        ? gameActive
+          ? statusFor(serverHealth)
+          : { text: 'OFFLINE (stopped)', color: 'text-slate-500' }
+        : n.id === 'lobby'
+          ? lobbyActive
+            ? { text: 'Nominal', color: 'text-neon-green' }
+            : { text: 'Not connected', color: 'text-slate-500' }
+          : n.id === 'client'
+            ? lobbyActive || gameActive
+              ? { text: 'Nominal', color: 'text-neon-green' }
+              : { text: 'Idle — not connected', color: 'text-slate-500' }
+            : { text: 'Nominal', color: 'text-neon-green' };
     setSelectedNode({
       id: n.id,
       label: n.label,
@@ -160,7 +174,11 @@ export function NetworkTopology() {
                 ? activeScenario === 'sniffing'
                   ? 'Passive capture — observing local LAN traffic'
                   : 'Port scan — probing which services are exposed'
-                : 'All links nominal'
+                : gameActive
+                  ? 'All links nominal'
+                  : lobbyActive
+                    ? 'Connected to lobby — matchmaking in progress'
+                    : 'Match server offline — start the game to connect'
         }
         accent={isAttack ? 'red' : 'green'}
         right={
@@ -199,7 +217,7 @@ export function NetworkTopology() {
             onDoubleClick={resetView}
           >
             <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
-              {/* base links */}
+              {/* base links — dimmed with no traffic while the client has no live session */}
               <line
                 x1={client.x}
                 y1={client.y}
@@ -207,9 +225,17 @@ export function NetworkTopology() {
                 y2={lobby.y}
                 stroke={effect === 'mitm-reroute' && !showFirewallActive ? '#7f1d1d' : '#334155'}
                 strokeWidth={1.5}
-                opacity={effect === 'mitm-reroute' && !showFirewallActive ? 0.3 : 1}
+                opacity={effect === 'mitm-reroute' && !showFirewallActive ? 0.3 : lobbyActive ? 1 : 0.2}
               />
-              <line x1={lobby.x} y1={lobby.y} x2={match.x} y2={match.y} stroke="#334155" strokeWidth={1.5} />
+              <line
+                x1={lobby.x}
+                y1={lobby.y}
+                x2={match.x}
+                y2={match.y}
+                stroke="#334155"
+                strokeWidth={1.5}
+                opacity={lobbyActive || gameActive ? 1 : 0.2}
+              />
 
               {effect === 'mitm-reroute' && !showFirewallActive && (
                 <>
@@ -235,8 +261,8 @@ export function NetworkTopology() {
                 x1={client.x} y1={client.y} x2={match.x} y2={match.y}
                 stroke={isAttack ? '#7f1d1d' : '#1e293b'}
                 strokeWidth={isAttack ? 1.5 : 2}
-                strokeDasharray={isAttack ? '4 10' : undefined}
-                opacity={isAttack ? 0.5 : 1}
+                strokeDasharray={isAttack ? '4 10' : gameActive ? undefined : '2 4'}
+                opacity={isAttack ? 0.5 : gameActive ? 1 : 0.2}
               />
 
               {/* Attacker control link — the Kali box commands the botnet during direct floods. */}
@@ -398,11 +424,11 @@ export function NetworkTopology() {
                 </g>
               )}
 
-              {/* client <-> lobby heartbeat (hidden while rerouted through MITM, restored when DAI drops the spoof) */}
-              {effect !== 'mitm-reroute' || showFirewallActive ? (
+              {/* client <-> lobby heartbeat (only while connected to the lobby; hidden while rerouted through MITM, restored when DAI drops the spoof) */}
+              {lobbyActive && (effect !== 'mitm-reroute' || showFirewallActive) && (
                 <ParticleStream from="client" to="lobby" color="#06b6d4" count={2} duration={2.2} idPrefix="cl" />
-              ) : null}
-              <ParticleStream from="lobby" to="match" color="#06b6d4" count={2} duration={2.2} idPrefix="lm" />
+              )}
+              {(lobbyActive || gameActive) && <ParticleStream from="lobby" to="match" color="#06b6d4" count={2} duration={2.2} idPrefix="lm" />}
 
               {effect === 'none' && gameActive && (
                 <ParticleStream from="client" to="match" color="#22c55e" count={3} duration={1.4} idPrefix="cm" />

@@ -26,9 +26,10 @@ describe('createSimStore', () => {
     expect(state.gameActive).toBe(false);
   });
 
-  it('the game server starts stopped by default', () => {
+  it('the game server and lobby start stopped / disconnected by default', () => {
     const store = createSimStore();
     expect(store.getState().gameActive).toBe(false);
+    expect(store.getState().lobbyActive).toBe(false);
   });
 
   it('setGameActive toggles the game server state', () => {
@@ -39,11 +40,20 @@ describe('createSimStore', () => {
     expect(store.getState().gameActive).toBe(false);
   });
 
-  it('launching a non-idle scenario implies the game is running', () => {
+  it('setLobbyActive toggles the lobby session independently of the game server', () => {
+    const store = createSimStore();
+    store.getState().setLobbyActive(true);
+    expect(store.getState().lobbyActive).toBe(true);
+    expect(store.getState().gameActive).toBe(false);
+  });
+
+  it('launching a scenario does not auto-start the game server', () => {
     const store = createSimStore();
     store.getState().setScenario('synflood');
-    expect(store.getState().gameActive).toBe(true);
-    // Returning to the idle baseline does not start the game.
+    expect(store.getState().gameActive).toBe(false);
+    expect(store.getState().lobbyActive).toBe(false);
+    // The game server must be started explicitly (start / FIND MATCH).
+    store.getState().setGameActive(true);
     store.getState().setScenario('baseline');
     expect(store.getState().gameActive).toBe(true);
   });
