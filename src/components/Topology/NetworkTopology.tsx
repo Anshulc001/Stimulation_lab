@@ -83,6 +83,7 @@ export function NetworkTopology() {
   const activeScenario = useSimStore((s) => s.activeScenario);
   const serverHealth = useSimStore((s) => s.serverHealth);
   const wafActive = useSimStore((s) => s.wafActive);
+  const gameActive = useSimStore((s) => s.gameActive);
   const view = useUiStore((s) => s.topologyView);
   const setView = useUiStore((s) => s.setTopologyView);
   const [selectedNode, setSelectedNode] = useState<TopologyNodeInfo | null>(null);
@@ -403,7 +404,7 @@ export function NetworkTopology() {
               ) : null}
               <ParticleStream from="lobby" to="match" color="#06b6d4" count={2} duration={2.2} idPrefix="lm" />
 
-              {effect === 'none' && (
+              {effect === 'none' && gameActive && (
                 <ParticleStream from="client" to="match" color="#22c55e" count={3} duration={1.4} idPrefix="cm" />
               )}
               {effect === 'recon-scan' && (
@@ -465,7 +466,8 @@ export function NetworkTopology() {
                 if (isReflector && effect !== 'amplify-burst') return null;
                 const dimmed =
                   (n.id === 'botnet' && !showBotnetActive && !isRecovering) ||
-                  (n.id === 'firewall' && !wafActive);
+                  (n.id === 'firewall' && !wafActive) ||
+                  (n.id === 'match' && !gameActive);
                 const blocked =
                   (n.id === 'botnet' && isRecovering) ||
                   // attacker's spoofed reroute is dropped when DAI is active
@@ -510,7 +512,7 @@ export function NetworkTopology() {
                       {n.label}
                     </text>
                     <text x={0} y={57} textAnchor="middle" fill="#64748b" fontSize={9}>
-                      {n.sub}
+                      {n.id === 'match' && !gameActive ? '10.0.0.10:7777 · OFFLINE' : n.sub}
                     </text>
                     {blocked && (
                       <text x={0} y={69} textAnchor="middle" fill="#64748b" fontSize={8.5} fontWeight={600}>

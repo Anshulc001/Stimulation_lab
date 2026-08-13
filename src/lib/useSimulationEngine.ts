@@ -13,7 +13,7 @@ export function useSimulationEngine() {
       const state = useSimStore.getState();
       const scenario = getScenario(state.activeScenario);
       const elapsedSec = (Date.now() - state.scenarioStartedAt) / 1000;
-      let packets = scenario.generatePackets(state.wafActive, elapsedSec);
+      let packets = scenario.generatePackets(state.wafActive, elapsedSec, state.gameActive);
       if (state.blockedIps.length > 0) {
         packets = packets.filter((p) => !state.blockedIps.some((ip) => p.src.includes(ip)));
       }
@@ -32,7 +32,7 @@ export function useSimulationEngine() {
       const state = useSimStore.getState();
       const scenario = getScenario(state.activeScenario);
       const elapsedSec = (Date.now() - state.scenarioStartedAt) / 1000;
-      const target = scenario.telemetryTarget(elapsedSec, state.wafActive);
+      const target = scenario.telemetryTarget(elapsedSec, state.wafActive, state.gameActive);
 
       const lerp = (cur: number, tgt: number, speed: number) => cur + (tgt - cur) * speed;
       const jitter = (v: number, amt: number) => v + (Math.random() - 0.5) * amt;
@@ -43,10 +43,18 @@ export function useSimulationEngine() {
       const newPing = Math.max(15, lerp(state.ping, jitter(target.ping, isSevere ? 60 : 4), 0.3));
       const newTick = Math.max(0, Math.min(60, lerp(state.tickRate, target.tick, 0.4)));
       const newLoss = Math.max(0, Math.min(100, lerp(state.packetLoss, jitter(target.packetLoss, 2), 0.3)));
-      const newPlayers = Math.max(
-        0,
-        Math.min(100, state.playerCount + target.playerDelta * 0.5 + (Math.random() - 0.5) * 0.4)
-      );
+      // Absolute player targets (baseline idle = 0, gameplay = 92) ease toward
+      // the value; delta-based targets (attack drain) keep the additive model.
+      const newPlayers =
+        target.playerTarget !== undefined
+          ? Math.max(
+              0,
+              Math.min(100, state.playerCount + (target.playerTarget - state.playerCount) * 0.3 + (Math.random() - 0.5) * 0.4)
+            )
+          : Math.max(
+              0,
+              Math.min(100, state.playerCount + target.playerDelta * 0.5 + (Math.random() - 0.5) * 0.4)
+            );
 
       // Rough bandwidth estimate from the last packet batch's total size.
       // Only used as a fallback when the scenario doesn't declare its own

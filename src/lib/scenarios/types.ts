@@ -15,6 +15,12 @@ export interface TelemetryTargetResult {
    */
   bandwidthIn?: number;
   bandwidthOut?: number;
+  /**
+   * Absolute target for the player count when present (e.g. baseline wants
+   * 92 during gameplay but 0 when the game server is stopped). When omitted,
+   * the engine keeps the delta-based easing used by attack scenarios.
+   */
+  playerTarget?: number;
 }
 
 export interface ScenarioDefinition {
@@ -60,11 +66,12 @@ export interface ScenarioDefinition {
   mitigable: boolean;
   /**
    * Pure function producing telemetry targets given seconds elapsed since the
-   * scenario started and whether WAF mitigation is currently active.
+   * scenario started, whether WAF mitigation is currently active, and whether
+   * the game is running (false while the server is stopped).
    */
-  telemetryTarget: (elapsedSec: number, waf: boolean) => TelemetryTargetResult;
+  telemetryTarget: (elapsedSec: number, waf: boolean, gameActive: boolean) => TelemetryTargetResult;
   /** Called roughly every 100ms to produce this tick's mock packets. */
-  generatePackets: (waf: boolean, elapsedSec: number) => Packet[];
+  generatePackets: (waf: boolean, elapsedSec: number, gameActive: boolean) => Packet[];
   /** Auto-return-to-baseline duration in seconds, if the scenario is self-terminating (e.g. port scan). */
   autoEndAfterSec?: number;
 }

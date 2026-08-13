@@ -30,6 +30,7 @@ const BOTNET_MARKERS = [
 
 export function WorldMapView() {
   const activeScenario = useSimStore((s) => s.activeScenario);
+  const gameActive = useSimStore((s) => s.gameActive);
   const isAttack = isAttackScenario(activeScenario);
   const match = MARKERS.find((m) => m.id === 'match')!;
 
@@ -42,7 +43,9 @@ export function WorldMapView() {
 
       {/* control link */}
       <line x1={MARKERS[1].x} y1={MARKERS[1].y} x2={match.x} y2={match.y} stroke="#334155" strokeDasharray="3 4" strokeWidth={1} />
-      <line x1={MARKERS[0].x} y1={MARKERS[0].y} x2={match.x} y2={match.y} stroke={isAttack ? '#7f1d1d' : '#1e293b'} strokeWidth={1.5} opacity={isAttack ? 0.4 : 1} />
+      {gameActive && (
+        <line x1={MARKERS[0].x} y1={MARKERS[0].y} x2={match.x} y2={match.y} stroke={isAttack ? '#7f1d1d' : '#1e293b'} strokeWidth={1.5} opacity={isAttack ? 0.4 : 1} />
+      )}
 
       {isAttack &&
         BOTNET_MARKERS.map((b, i) => {

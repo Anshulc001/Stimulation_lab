@@ -22,6 +22,8 @@ export const WEB_SERVER = '10.0.0.20'; // web / API server
 export const WEB_PORT = 443; // TLS
 export const HTTP_PORT = 80;
 export const NTP_REFLECTOR_PORT = 123;
+export const DNS_SERVER = '8.8.8.8'; // upstream resolver (simulated)
+export const NTP_SERVER = '198.51.100.1'; // upstream NTP time source (simulated)
 
 export interface ScanResultRow {
   port: number;
@@ -128,6 +130,125 @@ export function makeLobbyPacket(): Packet {
     protocol: 'TCP' as Protocol,
     length,
     info: `[PSH, ACK] API Heartbeat Seq=${randInt(1000, 9999)}`,
+    malicious: false,
+    hex,
+    ascii: hexToAscii(hex),
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Normal background LAN traffic — shown by the baseline scenario while
+ * the game server is stopped. Everything below is benign, everyday
+ * chatter: no game packets, no attackers.
+ * ------------------------------------------------------------------ */
+
+/** Benign ARP resolution between the client and gateway (no spoofing). */
+export function makeArpPacket(): Packet {
+  packetCounter += 1;
+  const hex = randomHex(16);
+  const request = Math.random() > 0.5;
+  return {
+    id: packetCounter,
+    no: packetCounter,
+    time: elapsedSeconds(),
+    src: request ? CLIENT_IP : GATEWAY_IP,
+    dst: request ? `ff:ff:ff:ff:ff:ff (broadcast)` : CLIENT_IP,
+    protocol: 'ARP' as Protocol,
+    length: randInt(42, 60),
+    info: request
+      ? `[ARP] Who-has ${GATEWAY_IP}? Tell ${CLIENT_IP}`
+      : `[ARP] ${GATEWAY_IP} is-at 00:1a:2b:00:11:22`,
+    malicious: false,
+    hex,
+    ascii: hexToAscii(hex),
+  };
+}
+
+/** DNS query / response between the client and the upstream resolver. */
+export function makeDnsPacket(): Packet {
+  packetCounter += 1;
+  const hex = randomHex(16);
+  const query = Math.random() > 0.4;
+  const domain = ['cdn.cyberlab.test', 'api.cyberlab.test', 'match.cyberlab.test', 'example.com'][
+    randInt(0, 3)
+  ];
+  return {
+    id: packetCounter,
+    no: packetCounter,
+    time: elapsedSeconds(),
+    src: query ? CLIENT_IP : DNS_SERVER,
+    dst: query ? `${DNS_SERVER}:53` : CLIENT_IP,
+    protocol: 'UDP' as Protocol,
+    length: randInt(60, 110),
+    info: query
+      ? `[DNS] Standard query A ${domain}`
+      : `[DNS] Standard query response A ${domain}`,
+    malicious: false,
+    hex,
+    ascii: hexToAscii(hex),
+  };
+}
+
+/** NTP clock sync between the client and an upstream time source. */
+export function makeNtpPacket(): Packet {
+  packetCounter += 1;
+  const hex = randomHex(16);
+  const request = Math.random() > 0.5;
+  return {
+    id: packetCounter,
+    no: packetCounter,
+    time: elapsedSeconds(),
+    src: request ? CLIENT_IP : NTP_SERVER,
+    dst: request ? `${NTP_SERVER}:${NTP_REFLECTOR_PORT}` : CLIENT_IP,
+    protocol: 'UDP' as Protocol,
+    length: randInt(48, 90),
+    info: request
+      ? `[NTP] Client Clock Sync Request`
+      : `[NTP] Clock Sync Reply stratum=2 offset=+0.004`,
+    malicious: false,
+    hex,
+    ascii: hexToAscii(hex),
+  };
+}
+
+/** DHCP discover / offer on the local segment. */
+export function makeDhcpPacket(): Packet {
+  packetCounter += 1;
+  const hex = randomHex(16);
+  const offer = Math.random() > 0.5;
+  return {
+    id: packetCounter,
+    no: packetCounter,
+    time: elapsedSeconds(),
+    src: offer ? `${GATEWAY_IP}:67` : '0.0.0.0:68',
+    dst: offer ? `${CLIENT_IP}:68` : '255.255.255.255:67',
+    protocol: 'UDP' as Protocol,
+    length: randInt(240, 300),
+    info: offer
+      ? `[DHCP] Offer (xid=${randInt(0x100000, 0xffffff).toString(16).toUpperCase()})`
+      : `[DHCP] Discover (xid=${randInt(0x100000, 0xffffff).toString(16).toUpperCase()})`,
+    malicious: false,
+    hex,
+    ascii: hexToAscii(hex),
+  };
+}
+
+/** ICMP echo request / reply — the same traffic a `ping` produces. */
+export function makeIcmpPacket(): Packet {
+  packetCounter += 1;
+  const hex = randomHex(16);
+  const reply = Math.random() > 0.5;
+  return {
+    id: packetCounter,
+    no: packetCounter,
+    time: elapsedSeconds(),
+    src: reply ? GATEWAY_IP : CLIENT_IP,
+    dst: reply ? CLIENT_IP : GATEWAY_IP,
+    protocol: 'ICMP' as Protocol,
+    length: randInt(60, 84),
+    info: reply
+      ? `[ICMP] Echo (ping) reply seq=${randInt(1, 999)}`
+      : `[ICMP] Echo (ping) request seq=${randInt(1, 999)}`,
     malicious: false,
     hex,
     ascii: hexToAscii(hex),

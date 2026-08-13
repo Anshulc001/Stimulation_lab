@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Waypoints, X } from 'lucide-react';
 import type { Packet } from '../../types';
+import { MATCH_PORT, MATCH_SERVER } from '../../lib/packetGenerator';
 
 interface PacketDrawerProps {
   packet: Packet | null;
@@ -10,6 +11,12 @@ interface PacketDrawerProps {
 
 function stripPort(addr: string): string {
   return addr.replace(/:\d+$/, '').split(' ')[0];
+}
+
+/** True only for traffic to/from the match server (10.0.0.10:7777). */
+function isGameTraffic(p: Packet): boolean {
+  const match = `${MATCH_SERVER}:${MATCH_PORT}`;
+  return p.src.includes(match) || p.dst.includes(match);
 }
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -74,7 +81,13 @@ export function PacketDrawer({ packet, onClose, onFollowStream }: PacketDrawerPr
           <Row label="Length" value={`${packet.length} bytes`} />
           <Row
             label="Classification"
-            value={packet.malicious ? 'MALICIOUS / ANOMALOUS' : 'Legitimate Game Traffic'}
+            value={
+              packet.malicious
+                ? 'MALICIOUS / ANOMALOUS'
+                : isGameTraffic(packet)
+                  ? 'Legitimate Game Traffic'
+                  : 'Legitimate Traffic'
+            }
             danger={packet.malicious}
           />
           <Row label="Info" value={packet.info} />

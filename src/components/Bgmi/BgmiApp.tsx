@@ -70,6 +70,9 @@ export function BgmiApp() {
     clearTimers();
     setJoined(1);
     setStage('connecting-lobby');
+    // Connecting to the match server starts the game session — game-tick
+    // traffic and live telemetry (tick rate, players) now flow in the sim.
+    useSimStore.getState().setGameActive(true);
     goto('matchmaking', STAGE_DURATION['connecting-lobby']!);
   };
 
@@ -101,6 +104,8 @@ export function BgmiApp() {
     clearTimers();
     setStage('menu');
     setJoined(0);
+    // Leaving the match ends the game session — back to idle background traffic.
+    useSimStore.getState().setGameActive(false);
   };
 
   const connected = Math.round(playerCount);

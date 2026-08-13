@@ -32,6 +32,7 @@ function downloadCapture(packets: Packet[]) {
 export function PacketAnalyzer() {
   const packets = useSimStore((s) => s.packets);
   const activeScenario = useSimStore((s) => s.activeScenario);
+  const gameActive = useSimStore((s) => s.gameActive);
   const [selected, setSelected] = useState<Packet | null>(null);
   const [filter, setFilter] = useState('');
   const [showChart, setShowChart] = useState(false);
@@ -67,7 +68,9 @@ export function PacketAnalyzer() {
             ? `capturing… ${scenario.shortLabel.toLowerCase()} traffic detected`
             : isRecovering
               ? 'capturing… attacker traffic dropped at edge, recovering'
-              : 'capturing on eth0 · client ↔ match server'
+              : gameActive
+                ? 'capturing on eth0 · client ↔ match server'
+                : 'capturing on eth0 · normal LAN traffic (game server stopped)'
         }
         accent={isAttack ? 'red' : 'cyan'}
         right={

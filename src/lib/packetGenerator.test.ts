@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   makeAmplificationPacket,
+  makeArpPacket,
   makeArpSpoofPacket,
+  makeDhcpPacket,
+  makeDnsPacket,
   makeFloodPacket,
   makeGameTickPacket,
+  makeIcmpPacket,
   makeLobbyPacket,
+  makeNtpPacket,
   makePingPacket,
   makePortScanPacket,
   makeReflectionRequestPacket,
@@ -96,6 +101,46 @@ describe('packetGenerator', () => {
     const p = makeSlowlorisPacket();
     assertWellFormedPacket(p);
     expect(p.protocol).toBe('TCP');
+  });
+
+  it('generates benign background ARP packets', () => {
+    const p = makeArpPacket();
+    assertWellFormedPacket(p);
+    expect(p.protocol).toBe('ARP');
+    expect(p.malicious).toBe(false);
+    expect(p.info).toContain('[ARP]');
+  });
+
+  it('generates benign DNS packets', () => {
+    const p = makeDnsPacket();
+    assertWellFormedPacket(p);
+    expect(p.protocol).toBe('UDP');
+    expect(p.malicious).toBe(false);
+    expect(p.info).toContain('[DNS]');
+  });
+
+  it('generates benign NTP packets', () => {
+    const p = makeNtpPacket();
+    assertWellFormedPacket(p);
+    expect(p.protocol).toBe('UDP');
+    expect(p.malicious).toBe(false);
+    expect(p.info).toContain('[NTP]');
+  });
+
+  it('generates benign DHCP packets', () => {
+    const p = makeDhcpPacket();
+    assertWellFormedPacket(p);
+    expect(p.protocol).toBe('UDP');
+    expect(p.malicious).toBe(false);
+    expect(p.info).toContain('[DHCP]');
+  });
+
+  it('generates benign ICMP echo packets', () => {
+    const p = makeIcmpPacket();
+    assertWellFormedPacket(p);
+    expect(p.protocol).toBe('ICMP');
+    expect(p.malicious).toBe(false);
+    expect(p.info).toContain('[ICMP]');
   });
 
   it('increments packet ids across calls', () => {

@@ -39,6 +39,10 @@ export interface SimState {
   bandwidthOut: number;
   hwidBanned: boolean;
   wafActive: boolean;
+  /** Whether the game client is connected to / playing on the match server.
+   *  When false, the default state, Wireshark shows normal background LAN
+   *  traffic and telemetry reads as "server idle" — no game packets flow. */
+  gameActive: boolean;
   blockedIps: string[];
   theme: Theme;
   packets: Packet[];
@@ -65,6 +69,7 @@ export interface SimState {
   clearTerminal: () => void;
   setHwidBanned: (b: boolean) => void;
   setWafActive: (b: boolean) => void;
+  setGameActive: (b: boolean) => void;
   blockIp: (ip: string) => void;
   setTheme: (t: Theme) => void;
   resetAll: () => void;
@@ -87,15 +92,18 @@ function baseState() {
     activeScenario: 'baseline' as ScenarioId,
     scenarioStartedAt: Date.now(),
     serverHealth: 'optimal' as ServerHealth,
-    cpuLoad: 12,
-    ping: 35,
-    tickRate: 60,
-    playerCount: 92,
-    packetLoss: 0.2,
-    bandwidthIn: 0.8,
-    bandwidthOut: 0.6,
+    // The game server starts stopped, so initial metrics read as idle —
+    // no players, no ticks — until the game is started.
+    cpuLoad: 6,
+    ping: 15,
+    tickRate: 0,
+    playerCount: 0,
+    packetLoss: 0,
+    bandwidthIn: 0.1,
+    bandwidthOut: 0.05,
     hwidBanned: false,
     wafActive: false,
+    gameActive: false,
     blockedIps: [] as string[],
     packets: [] as Packet[],
     securityEvents: [] as SecurityEvent[],
@@ -119,6 +127,10 @@ export function createSimStore() {
       set({
         activeScenario: id,
         scenarioStartedAt: Date.now(),
+        // Recon / attack / defense scenarios all demo a live match server, so
+        // launching one implies the game is running. Only the idle baseline
+        // leaves the server stopped.
+        gameActive: def.category !== 'idle' ? true : get().gameActive,
       });
     },
 
@@ -191,6 +203,11 @@ export function createSimStore() {
     setWafActive: (b) => {
       get().pushIncident(b ? 'success' : 'info', `WAF Mitigation ${b ? 'Enabled' : 'Disabled'}`);
       set({ wafActive: b });
+    },
+
+    setGameActive: (b) => {
+      get().pushIncident(b ? 'success' : 'info', `Game Server ${b ? 'Started' : 'Stopped'}`);
+      set({ gameActive: b });
     },
 
     blockIp: (ip) =>

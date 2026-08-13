@@ -225,15 +225,19 @@ function netstatLine(proto: string, local: string, foreign: string, state: strin
 }
 
 function runNetstat() {
+  const s = useSimStore.getState();
   const lines = [
     'Active Internet connections',
     netstatLine('Proto', 'Local Address', 'Foreign Address', 'State'),
-    netstatLine('udp', `${CLIENT_IP}:51422`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'),
     netstatLine('tcp', `${CLIENT_IP}:51888`, `${WEB_SERVER}:${WEB_PORT}`, 'ESTABLISHED'),
     netstatLine('tcp', `${CLIENT_IP}:51889`, `${WEB_SERVER}:${WEB_PORT}`, 'TIME_WAIT'),
-    netstatLine('udp', `${CLIENT_IP}:51423`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'),
   ];
-  const scenario = useSimStore.getState().activeScenario;
+  // The game UDP socket only exists while the match server is running.
+  if (s.gameActive) {
+    lines.push(netstatLine('udp', `${CLIENT_IP}:51422`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'));
+    lines.push(netstatLine('udp', `${CLIENT_IP}:51423`, `${MATCH_SERVER}:${MATCH_PORT}`, 'ESTABLISHED'));
+  }
+  const scenario = s.activeScenario;
   if (scenario === 'synflood' || scenario === 'amplification' || scenario === 'recovering') {
     lines.push(netstatLine('tcp', '45.33.12.201:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
     lines.push(netstatLine('tcp', '88.198.44.19:0', `${MATCH_SERVER}:${MATCH_PORT}`, 'SYN_FLOOD'));
@@ -265,6 +269,7 @@ function runStatus() {
   const s = useSimStore.getState();
   const scenario = getScenario(s.activeScenario);
   typeLine(`scenario: ${scenario.label} (${s.activeScenario})`);
+  typeLine(`game server: ${s.gameActive ? `RUNNING (${MATCH_SERVER}:${MATCH_PORT}/UDP)` : 'STOPPED'}`);
   typeLine(`server health: ${s.serverHealth}`);
   typeLine(`cpu load: ${s.cpuLoad.toFixed(0)}%`);
   typeLine(`ping: ${s.ping.toFixed(0)}ms`);
@@ -273,6 +278,22 @@ function runStatus() {
   typeLine(`players online: ${s.playerCount.toFixed(0)}`);
   typeLine(`waf mitigation: ${s.wafActive ? 'ON' : 'off'}`);
   typeLine(`hwid banned: ${s.hwidBanned}`);
+}
+
+function runStartServer() {
+  const { setGameActive } = useSimStore.getState();
+  setGameActive(true);
+  typeLine(`Game server started: ${MATCH_SERVER}:${MATCH_PORT}/UDP is now accepting connections.`, 'success');
+  typeLine('Game-tick traffic will now appear in the packet analyzer.', 'output', 200);
+}
+
+function runStopServer() {
+  const { setGameActive, setScenario, activeScenario } = useSimStore.getState();
+  setGameActive(false);
+  // A stopped server ends any running demo — return to the idle baseline.
+  if (activeScenario !== 'baseline') setScenario('baseline');
+  typeLine(`Game server stopped: ${MATCH_SERVER}:${MATCH_PORT}/UDP is no longer serving.`, 'success');
+  typeLine('Capture now shows normal background LAN traffic only.', 'output', 200);
 }
 
 interface SniffFrame {
@@ -539,6 +560,12 @@ export function executeCommand(raw: string) {
       break;
     case 'status':
       runStatus();
+      break;
+    case 'start':
+      runStartServer();
+      break;
+    case 'stop':
+      runStopServer();
       break;
     case 'sniff':
     case 'sniff-insecure':

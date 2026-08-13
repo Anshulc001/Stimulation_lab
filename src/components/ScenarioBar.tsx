@@ -56,7 +56,12 @@ const GROUPS: { label: string; category: 'idle' | 'recon' | 'attack' | 'defense'
 function runScenario(id: ScenarioId, runCommand: string) {
   if (id === 'baseline') {
     useSimStore.getState().resetAll();
-    useSimStore.getState().pushTerminalLine('success', 'Scenario: Baseline Gameplay — nominal UDP tick traffic restored.');
+    useSimStore
+      .getState()
+      .pushTerminalLine(
+        'success',
+        'Scenario: Baseline — game server stopped, capturing normal LAN traffic. Type `start` (or BGMI → FIND MATCH) to begin a match.'
+      );
     return;
   }
   executeCommand(runCommand);

@@ -23,6 +23,29 @@ describe('createSimStore', () => {
     expect(state.activeScenario).toBe('baseline');
     expect(state.hwidBanned).toBe(false);
     expect(state.theme).toBe('amber');
+    expect(state.gameActive).toBe(false);
+  });
+
+  it('the game server starts stopped by default', () => {
+    const store = createSimStore();
+    expect(store.getState().gameActive).toBe(false);
+  });
+
+  it('setGameActive toggles the game server state', () => {
+    const store = createSimStore();
+    store.getState().setGameActive(true);
+    expect(store.getState().gameActive).toBe(true);
+    store.getState().setGameActive(false);
+    expect(store.getState().gameActive).toBe(false);
+  });
+
+  it('launching a non-idle scenario implies the game is running', () => {
+    const store = createSimStore();
+    store.getState().setScenario('synflood');
+    expect(store.getState().gameActive).toBe(true);
+    // Returning to the idle baseline does not start the game.
+    store.getState().setScenario('baseline');
+    expect(store.getState().gameActive).toBe(true);
   });
 
   it('setHwidBanned(true) logs a success incident', () => {

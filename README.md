@@ -43,7 +43,7 @@ Because every scenario is defined by a *pure, data-driven definition* (not hardc
 | Area | What you get |
 | --- | --- |
 | 🖥️ **Kali-style Desktop** | Draggable/resizable/maximizable windows, taskbar, app launcher, themes (Cyberpunk / Neon Purple / Amber), fullscreen mode |
-| 💻 **Terminal** | `ping`, `traceroute`, `whois`, `netstat`, `nmap`, `arpspoof`, `hping3`, `slowloris`, `sniff`, `waf`, `block`, `iptables`, `ban`, `status`, `guide`, `help` |
+| 💻 **Terminal** | `ping`, `traceroute`, `whois`, `netstat`, `nmap`, `arpspoof`, `hping3`, `slowloris`, `sniff`, `start`, `stop`, `waf`, `block`, `iptables`, `ban`, `status`, `guide`, `help` |
 | 📡 **Wireshark analyzer** | Live packet table with hex/ASCII dump, protocol distribution chart, filter bar (`src==`, `proto==`, `ip.addr==` …) |
 | 📈 **System Monitor** | Live CPU, ping, tick rate, packet loss, player count, bandwidth gauges + line charts |
 | 🗺️ **Network Topology** | Animated client → gateway → match server graph; MITM rerouting, flood pulses, amplify bursts |
@@ -137,9 +137,11 @@ npm run lint
 
 A single hook, [`useSimulationEngine`](src/lib/useSimulationEngine.ts), drives everything from the currently **active scenario definition**:
 
-1. Every **100 ms** it calls `scenario.generatePackets(wafActive, elapsedSec)` and pushes the returned `Packet[]` into the store (the Wireshark window renders them).
-2. Every **500 ms** it calls `scenario.telemetryTarget(elapsedSec, wafActive)` and eases the live CPU / ping / tick / loss / player values toward those targets (the System Monitor renders them).
+1. Every **100 ms** it calls `scenario.generatePackets(wafActive, elapsedSec, gameActive)` and pushes the returned `Packet[]` into the store (the Wireshark window renders them).
+2. Every **500 ms** it calls `scenario.telemetryTarget(elapsedSec, wafActive, gameActive)` and eases the live CPU / ping / tick / loss / player values toward those targets (the System Monitor renders them).
 3. The active scenario is stored in `simStore.activeScenario`; anything can switch it (`setScenario(id)`).
+
+The **game server starts stopped** (`simStore.gameActive === false`): the default `baseline` scenario then emits only normal background LAN traffic (ARP, DNS, NTP, DHCP, ICMP, TLS…) and idle telemetry (0 players, 0 Hz). Start the game with the terminal `start` command or BGMI → **FIND MATCH** to see game-tick traffic and live match telemetry; `stop` (or leaving the match) returns to idle. Launching a recon/attack/defense scenario implies a running server and starts the game automatically.
 
 Scenarios are registered in one map — [`registry.ts`](src/lib/scenarios/registry.ts) — and the **Scenario bar**, **Scenario Control app**, and **Guide** all render automatically from `SCENARIO_LIST`, so a new scenario appears in the UI with **zero UI changes**.
 
@@ -203,6 +205,9 @@ export const dnsampScenario: ScenarioDefinition = {
 ```
 
 ### 3. Add a packet factory (optional) — `src/lib/packetGenerator.ts`
+
+> `generatePackets` / `telemetryTarget` may read `gameActive` (third argument) when a scenario cares whether the match server is running — see `src/lib/scenarios/baseline.ts`, which switches between background LAN traffic and game ticks based on it.
+
 
 If your scenario needs a new kind of packet, add a `makeXxxPacket()` factory here:
 

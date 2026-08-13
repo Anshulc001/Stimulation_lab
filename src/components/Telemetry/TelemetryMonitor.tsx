@@ -79,6 +79,7 @@ export function TelemetryMonitor() {
   const telemetry = useSimStore((s) => s.telemetry);
   const securityEvents = useSimStore((s) => s.securityEvents);
   const hwidBanned = useSimStore((s) => s.hwidBanned);
+  const gameActive = useSimStore((s) => s.gameActive);
   const activeScenario = useSimStore((s) => s.activeScenario);
   const scenario = getScenario(activeScenario);
   const isAttack = scenario.category === 'attack';
@@ -114,6 +115,18 @@ export function TelemetryMonitor() {
           <span className="font-semibold text-slate-100">{scenario.classification.primaryImpact}</span>
           <span className="ml-auto text-slate-500">
             Defense: <span className="text-neon-green">{scenario.classification.primaryDefense}</span>
+          </span>
+        </div>
+      )}
+
+      {!gameActive && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-slate-800/80 bg-[#0b1120] px-3 py-1 text-[10px]">
+          <span className="flex items-center gap-1 font-bold text-slate-400">
+            <Server size={11} /> Game server STOPPED
+          </span>
+          <span className="text-slate-500">
+            no players · no ticks · start the game (terminal <span className="font-mono text-slate-300">start</span> or BGMI → FIND
+            MATCH) to see live match telemetry
           </span>
         </div>
       )}
