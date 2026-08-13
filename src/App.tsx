@@ -1,12 +1,23 @@
 import { useEffect } from 'react';
 import { Desktop } from './components/Desktop/Desktop';
 import { ErrorBoundary } from './components/Shared/ErrorBoundary';
+import { DesktopOnlyGate } from './components/Shared/DesktopOnlyGate';
 import { useSimulationEngine } from './lib/useSimulationEngine';
 import { useSimStore } from './store/simStore';
 import { useUiStore } from './store/uiStore';
 
-function App() {
+/** The full desktop experience — only mounted by DesktopOnlyGate when the
+    viewport is desktop-sized, so the simulation engine never runs on mobile. */
+function DesktopExperience() {
   useSimulationEngine();
+  return (
+    <ErrorBoundary label="CyberLab">
+      <Desktop />
+    </ErrorBoundary>
+  );
+}
+
+function App() {
   const theme = useSimStore((s) => s.theme);
   const fontSize = useUiStore((s) => s.fontSize);
 
@@ -19,9 +30,9 @@ function App() {
   }, [fontSize]);
 
   return (
-    <ErrorBoundary label="CyberLab">
-      <Desktop />
-    </ErrorBoundary>
+    <DesktopOnlyGate>
+      <DesktopExperience />
+    </DesktopOnlyGate>
   );
 }
 
